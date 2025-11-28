@@ -1,0 +1,8 @@
+{
+  "name": "HijriCalendar",
+  "description": "A futuristic, real-time Islamic Hijri calendar with prayer times, countdowns to special events, and an integrated AI assistant. The design is inspired by a cyberpunk aesthetic, providing a unique and modern user experience.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ]
+}
