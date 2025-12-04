@@ -3,26 +3,47 @@ import type { CalendarData, Day, CountdownTarget, HijriDate, PrayerTimes, UserSe
 import { CountdownEvent } from '../types';
 import { ALADHAN_API_BASE_URL } from '../constants';
 
+// Retry helper
+async function retryFetch(url: string, retries = 3, delay = 1000): Promise<Response> {
+    try {
+        const response = await fetch(url);
+        if (response.status === 503 || response.status === 504 || response.status === 500 || response.status === 502) {
+             throw new Error(`Service Unavailable: ${response.status}`);
+        }
+        return response;
+    } catch (error: any) {
+        if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryFetch(url, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+}
+
 // Fetches the full calendar for a given month and year
 export const fetchCalendarData = async (year: number, month: number): Promise<CalendarData> => {
     // New endpoint that doesn't require location
-    const response = await fetch(`${ALADHAN_API_BASE_URL}/gToHCalendar/${month}/${year}?calendarMethod=HJCoSA`);
-    if (!response.ok) {
-        throw new Error('Failed to fetch calendar data from Al-Adhan API');
-    }
-    const data = await response.json();
-    const days: Day[] = data.data;
+    try {
+        const response = await retryFetch(`${ALADHAN_API_BASE_URL}/gToHCalendar/${month}/${year}?calendarMethod=HJCoSA`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch calendar data from Al-Adhan API');
+        }
+        const data = await response.json();
+        const days: Day[] = data.data;
 
-    if (!days || days.length === 0) {
-        throw new Error('API returned no calendar data for the selected month.');
-    }
+        if (!days || days.length === 0) {
+            throw new Error('API returned no calendar data for the selected month.');
+        }
 
-    return {
-        days,
-        hijriMonthName: days[15]?.hijri.month.en || 'Unknown',
-        hijriYear: days[15]?.hijri.year || 'YYYY',
-        gregorianMonthName: days[15]?.gregorian.month.en || 'Unknown',
-    };
+        return {
+            days,
+            hijriMonthName: days[15]?.hijri.month.en || 'Unknown',
+            hijriYear: days[15]?.hijri.year || 'YYYY',
+            gregorianMonthName: days[15]?.gregorian.month.en || 'Unknown',
+        };
+    } catch (e) {
+        throw e;
+    }
 };
 
 // Fetches prayer times and optionally location name
@@ -30,26 +51,20 @@ export const fetchLocationAndPrayerTimes = async (latitude: number, longitude: n
     let url: string;
     let locationName: string;
     const today = new Date();
-    const pad = (n: number) => n < 10 ? `0${n}` : n;
-    const dateString = `${pad(today.getDate())}-${pad(today.getMonth() + 1)}-${today.getFullYear()}`;
+    const dateString = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
 
     if (settings && settings.manualLocation.city && settings.manualLocation.country) {
-        const city = settings.manualLocation.city.trim();
-        const country = settings.manualLocation.country.trim();
+        const city = settings.manualLocation.city;
+        const country = settings.manualLocation.country;
         const method = settings.prayerMethod || 20;
         url = `${ALADHAN_API_BASE_URL}/timingsByCity/${dateString}?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&method=${method}`;
         locationName = `${city}, ${country}`;
     } else {
         const method = settings?.prayerMethod || 3;
-        // Ensure coordinates are valid numbers
-        const lat = isNaN(latitude) ? 0 : latitude;
-        const lng = isNaN(longitude) ? 0 : longitude;
-        
-        url = `${ALADHAN_API_BASE_URL}/timings/${dateString}?latitude=${lat}&longitude=${lng}&method=${method}`;
-        
+        url = `${ALADHAN_API_BASE_URL}/timings/${dateString}?latitude=${latitude}&longitude=${longitude}&method=${method}`;
         // Fetch location name separately and non-critically
         try {
-            const geoResponse = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`);
+            const geoResponse = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=id`);
             if (geoResponse.ok) {
                 const geoData = await geoResponse.json();
                 const city = geoData.city || geoData.locality || '';
@@ -64,7 +79,7 @@ export const fetchLocationAndPrayerTimes = async (latitude: number, longitude: n
         }
     }
 
-    const prayerResponse = await fetch(url);
+    const prayerResponse = await retryFetch(url);
     if (!prayerResponse.ok) {
         throw new Error(`Failed to fetch prayer times. Status: ${prayerResponse.status}`);
     }
@@ -82,9 +97,8 @@ export const fetchLocationAndPrayerTimes = async (latitude: number, longitude: n
 
 // New function to convert Gregorian to Hijri
 export const convertGToH = async (date: Date): Promise<HijriDate> => {
-    const pad = (n: number) => n < 10 ? `0${n}` : n;
-    const dateString = `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`;
-    const response = await fetch(`${ALADHAN_API_BASE_URL}/gToH/${dateString}`);
+    const dateString = `${date.getDate()}-${date.getMonth() + 1}-${date.getFullYear()}`;
+    const response = await retryFetch(`${ALADHAN_API_BASE_URL}/gToH/${dateString}`);
     if (!response.ok) throw new Error('Failed to convert date');
     const data = await response.json();
     return data.data.hijri;
@@ -94,7 +108,7 @@ export const convertGToH = async (date: Date): Promise<HijriDate> => {
 // Converts a Hijri date to a Gregorian date using the API
 export async function convertHijriToGregorian(day: number, month: number, year: number): Promise<Date> {
     const date = `${day}-${month}-${year}`;
-    const response = await fetch(`${ALADHAN_API_BASE_URL}/hToG/${date}?calendarMethod=HJCoSA`);
+    const response = await retryFetch(`${ALADHAN_API_BASE_URL}/hToG/${date}?calendarMethod=HJCoSA`);
     if (!response.ok) {
         throw new Error('Failed to convert Hijri to Gregorian date.');
     }
@@ -106,7 +120,7 @@ export async function convertHijriToGregorian(day: number, month: number, year: 
 
 // Fetches official Islamic holidays for a Hijri year
 export const fetchHijriHolidays = async (year: number): Promise<Map<string, string>> => {
-    const response = await fetch(`${ALADHAN_API_BASE_URL}/islamicHolidaysByHijriYear/${year}?calendarMethod=HJCoSA`);
+    const response = await retryFetch(`${ALADHAN_API_BASE_URL}/islamicHolidaysByHijriYear/${year}?calendarMethod=HJCoSA`);
     if (!response.ok) {
         throw new Error('Failed to fetch Hijri holidays');
     }
@@ -217,7 +231,7 @@ export const getSpecificCountdownTarget = async (event: CountdownEvent, currentH
 
 export const fetchMonthlyPrayerCalendar = async (year: number, month: number, city: string, country: string, method: number): Promise<MonthlyPrayerDay[]> => {
     const url = `${ALADHAN_API_BASE_URL}/calendarByCity/${year}/${month}?city=${encodeURIComponent(city)}&country=${encodeURIComponent(country)}&method=${method}`;
-    const response = await fetch(url);
+    const response = await retryFetch(url);
     if (!response.ok) {
         throw new Error('Failed to fetch monthly prayer calendar from Al-Adhan API');
     }

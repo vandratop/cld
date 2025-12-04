@@ -13,6 +13,23 @@ const getAi = () => {
     return ai;
 };
 
+// Helper for exponential backoff retry
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+    try {
+        return await operation();
+    } catch (error: any) {
+        const isRetryable = error.status === 503 || error.status === 504 || error.status === 500 || 
+                            error.message?.includes('unavailable') || error.message?.includes('Overloaded') ||
+                            error.message?.includes('fetch failed');
+        
+        if (retries > 0 && isRetryable) {
+            console.warn(`Operation failed, retrying in ${delay}ms... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return retryOperation(operation, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+}
 
 export async function* streamChat(history: ChatMessage[], message: string): AsyncGenerator<string> {
     const chatModel = 'gemini-2.5-flash';
@@ -43,6 +60,8 @@ export async function* streamChat(history: ChatMessage[], message: string): Asyn
         console.error("Stream chat error:", e);
         if (e.status === 429 || e.message?.includes('429')) {
             yield "Maaf, saya sedang mencapai batas penggunaan harian. Silakan coba lagi nanti atau gunakan mode lain.";
+        } else if (e.status === 503 || e.message?.includes('unavailable')) {
+            yield "Maaf, layanan AI sedang sibuk/tidak tersedia saat ini. Mohon tunggu sebentar dan coba lagi.";
         } else {
             throw e;
         }
@@ -77,12 +96,12 @@ export const getGroundedResponse = async (
     } : {};
     
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
+        const response: GenerateContentResponse = await retryOperation(() => ai.models.generateContent({
             model: model,
             contents: prompt,
             config: { tools },
             ...toolConfig,
-        });
+        }));
         
         const text = response.text || "";
         const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
@@ -101,6 +120,9 @@ export const getGroundedResponse = async (
         if (e.status === 429 || e.message?.includes('429')) {
              return { text: "Maaf, batas penggunaan pencarian telah tercapai. Silakan coba lagi nanti.", grounding: [] };
         }
+        if (e.status === 503 || e.message?.includes('unavailable')) {
+             return { text: "Maaf, layanan pencarian sedang tidak tersedia. Silakan coba lagi nanti.", grounding: [] };
+        }
         throw e;
     }
 };
@@ -110,19 +132,22 @@ export const getComplexResponse = async (prompt: string): Promise<string> => {
     const ai = getAi();
     
     try {
-        const response = await ai.models.generateContent({
+        const response: GenerateContentResponse = await retryOperation(() => ai.models.generateContent({
             model: 'gemini-2.5-pro', 
             contents: prompt,
             config: {
                 thinkingConfig: { thinkingBudget: 1024 }
             }
-        });
+        }));
         
         return response.text || "";
     } catch (e: any) {
         console.error("Complex response error:", e);
         if (e.status === 429 || e.message?.includes('429')) {
             return "Maaf, layanan AI sedang sibuk atau mencapai batas penggunaan. Mohon coba lagi nanti.";
+        }
+        if (e.status === 503 || e.message?.includes('unavailable')) {
+            return "Maaf, layanan AI sedang tidak tersedia (Overloaded). Mohon coba lagi nanti.";
         }
         throw e;
     }
@@ -142,7 +167,7 @@ export const getDailyFact = async (): Promise<string> => {
         
         return response.text || "Fakta menarik tidak tersedia saat ini.";
     } catch (error: any) {
-        console.warn("Gemini API Error in getDailyFact (likely quota):", error);
+        console.warn("Gemini API Error in getDailyFact (likely quota or unavailable):", error);
         // Fallback facts if API fails (e.g. quota exceeded)
         const fallbackFacts = [
             "Universitas Al-Qarawiyyin di Fez, Maroko, diakui sebagai universitas tertua di dunia yang masih beroperasi, didirikan oleh Fatima al-Fihri pada tahun 859 M.",
