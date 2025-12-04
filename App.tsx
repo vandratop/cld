@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -6,7 +5,7 @@ import type { Location, CalendarData, Day, CountdownTarget, NextPrayer, PrayerTi
 import { fetchCalendarData, getNextCountdownTarget, fetchLocationAndPrayerTimes, convertGToH, fetchHijriHolidays, convertHijriToGregorian, getSpecificCountdownTarget } from './services/calendarService';
 import { getNationalHolidays } from './services/holidayService';
 import { getDailyFact } from './services/geminiService';
-import { translateToIndonesian } from './utils';
+import { translateToIndonesian, ALARM_MESSAGES, getLanguageFromCookie, PRAYER_NAMES_TRANSLATION } from './utils';
 import { CalendarGrid } from './components/CalendarGrid';
 import { YearlyView } from './components/YearlyView';
 import { DailyView } from './components/DailyView';
@@ -16,7 +15,7 @@ import { Settings } from './components/Settings';
 import { ShareModal } from './components/ShareModal';
 import { HeaderInfo } from './components/HeaderInfo';
 import { DateDetailModal } from './components/DateDetailModal';
-import { SettingsIcon, ChevronLeftIcon, ChevronRightIcon, AlarmIcon, CloseIcon, MenuIcon, QiblaIcon, RamadanModeIcon, PinIcon, SearchIcon, PaletteIcon, SparklesIcon, ReadingModeIcon, ContactIcon, VolumeUpIcon, MapIcon, MicIcon } from './components/Icons';
+import { SettingsIcon, ChevronLeftIcon, ChevronRightIcon, AlarmIcon, CloseIcon, MenuIcon, QiblaIcon, RamadanModeIcon, PinIcon, SearchIcon, PaletteIcon, SparklesIcon, ReadingModeIcon, ContactIcon, VolumeUpIcon, MapIcon, MicIcon, InstallIcon } from './components/Icons';
 import { DropdownMenu } from './components/DropdownMenu';
 import { InfoModal, InfoListItem } from './components/InfoModal';
 import { ContactUsModal } from './components/ContactUsModal';
@@ -28,37 +27,6 @@ import { CountdownEvent } from './types';
 
 
 type CalendarView = 'monthly' | 'weekly' | 'yearly' | 'daily';
-
-// Alarm Text Configuration
-const ALARM_MESSAGES = {
-    tahajud: "Assalamualaikum warahmatullahi wabarakatuh, AI-HIJR reminder waktu Qiyamullail untuk hari ini. Semoga Anda dalam keadaan Sehat Walafiat. Syukron.",
-    sahur: "Assalamualaikum warahmatullahi wabarakatuh, AI-HIJR reminder waktu Sahur untuk hari ini. Semoga Anda dalam keadaan Sehat Walafiat. Syukron.",
-    dhuha: "Assalamualaikum warahmatullahi wabarakatuh, AI-HIJR reminder waktu Shalat Dhuha untuk hari ini. Semoga Anda dalam keadaan Sehat Walafiat. Syukron.",
-    jumat: "Assalamualaikum warahmatullahi wabarakatuh, AI-HIJR reminder waktu shalat Jum'at akan segera tiba, mari persiapkan diri di awal waktu. Semoga Anda dalam keadaan Sehat Walafiat. Syukron.",
-    tidur: "Waktunya istirahat. Semoga besok menjadi hari yang lebih baik.",
-    shalat5Waktu: "Assalamualaikum warahmatullahi wabarakatuh, AI-HIJR reminder waktu shalat [PRAYER_NAME] (Subuh, Dzuhur, Ashar, Magrib, Isya, berdasarkan real-time setingan device lokasi user atau setingan melalui menu Lokasi & Jadwal Shalat) akan segera tiba, mari persiapkan diri di awal waktu. Dan sempurnakan shalat wajib dengan shalat Sunnah rawatib. Semoga Anda dalam keadaan Sehat Walafiat. Syukron."
-};
-
-const getTranslatedMessage = (text: string, prayerName?: string) => {
-    let message = text;
-    if (prayerName) {
-        message = message.replace('[PRAYER_NAME]', prayerName);
-    }
-
-    const userLang = navigator.language || 'id-ID';
-    if (userLang.startsWith('id')) {
-        return message; // Default is Indonesian
-    }
-
-    // Simple mapping for demo/basic translation to English if device is not ID
-    if (message.includes("Qiyamullail")) return "Peace be upon you. AI-HIJR reminder for Qiyamullail (Night Prayer). Hope you are in good health. Thank you.";
-    if (message.includes("Sahur")) return "Peace be upon you. AI-HIJR reminder for Suhoor time today. Hope you are in good health. Thank you.";
-    if (message.includes("Dhuha")) return "Peace be upon you. AI-HIJR reminder for Dhuha Prayer today. Hope you are in good health. Thank you.";
-    if (message.includes("Jum'at")) return "Peace be upon you. AI-HIJR reminder that Friday Prayer is approaching. Let's prepare early. Hope you are in good health. Thank you.";
-    if (message.includes("waktu shalat")) return `Peace be upon you. AI-HIJR reminder that ${prayerName || 'Prayer'} time is approaching. Let's prepare early. Hope you are in good health. Thank you.`;
-    
-    return message;
-};
 
 const WelcomeScreen: React.FC<{onDismiss: () => void}> = ({onDismiss}) => {
     const [message, setMessage] = useState('');
@@ -92,6 +60,10 @@ const WelcomeScreen: React.FC<{onDismiss: () => void}> = ({onDismiss}) => {
     const handleStart = async () => {
         try {
             await navigator.mediaDevices.getUserMedia({ audio: true });
+            if (window.AudioContext || (window as any).webkitAudioContext) {
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                await ctx.resume();
+            }
         } catch (e) {
             console.warn("Microphone permission denied or ignored");
         }
@@ -327,7 +299,7 @@ const CurrentTimeClock: React.FC = () => {
     }, []);
     
     return (
-        <div className="my-4">
+        <div className="my-4 pt-4 border-t border-[var(--border-color)]/20">
             <p className="text-xs text-center mb-2">waktu saat ini :</p>
             <div className="flex justify-center space-x-2 sm:space-x-4">
                 <TimeBox value={time.getHours()} label="Jam" />
@@ -346,14 +318,14 @@ const PrayerTimeDisplay: React.FC<{
     onToggleAlarm: () => void;
     onPlaySound: () => void;
 }> = ({ time, name, isNext = false, alarmOn, onToggleAlarm, onPlaySound }) => (
-    <div className={`flex justify-between items-center p-2 rounded-md cyber-border transition-all ${isNext ? 'bg-cyan-500/50 animate-pulse' : 'bg-black/20'}`}>
-        <span className="text-sm sm:text-base uppercase font-bold text-[var(--text-color-secondary)]">{name}</span>
-        <div className="flex items-center space-x-2">
+    <div className={`flex justify-between items-center p-2 rounded-md cyber-border transition-all ${isNext ? 'bg-cyan-500/50 animate-pulse' : 'bg-black/20'} min-w-[140px]`}>
+        <span className="text-sm sm:text-base uppercase font-bold text-[var(--text-color-secondary)] truncate mr-2">{name}</span>
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             <span className="font-clock text-lg sm:text-xl">{time}</span>
-            <button onClick={onPlaySound} title="Dengarkan Adzan"><VolumeUpIcon className="w-5 h-5"/></button>
+            <button onClick={onPlaySound} title="Dengarkan Adzan"><VolumeUpIcon className="w-4 h-4 sm:w-5 sm:h-5"/></button>
             <button 
                 onClick={onToggleAlarm}
-                className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors ${alarmOn ? 'bg-cyan-500' : 'bg-gray-600'}`}
+                className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors flex-shrink-0 ${alarmOn ? 'bg-cyan-500' : 'bg-gray-600'}`}
                 title={alarmOn ? 'Matikan Alarm Adzan' : 'Aktifkan Alarm Adzan'}
             >
                 <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${alarmOn ? 'translate-x-5' : 'translate-x-1'}`} />
@@ -364,7 +336,7 @@ const PrayerTimeDisplay: React.FC<{
 
 // Memoized to prevent closing on clock update
 const AdhanSoundSelector = React.memo(({ selectedAdhan, onAdhanChange, onPlayAdhan }: { selectedAdhan: string, onAdhanChange: (val: string) => void, onPlayAdhan: () => void }) => (
-    <div className="mt-3 px-4 max-w-xs mx-auto text-sm">
+    <div className="mt-3 px-4 max-w-xs mx-auto text-sm border-b border-[var(--border-color)]/20 pb-4 mb-4">
         <label htmlFor="adhan-sound" className="block text-xs mb-1 text-center">Pilihan Suara Adzan</label>
         <div className="flex items-center space-x-2">
             <select 
@@ -440,7 +412,10 @@ const PrayerInfo: React.FC<{
     onAdhanChange: (sound: string) => void;
     userSettings: UserSettings;
     onSettingsChange: (s: UserSettings) => void;
-}> = ({ prayerTimes, nextPrayer, locationName, error, onRetry, adhanAlarms, onToggleAdhanAlarm, onPlayAdhan, selectedAdhan, onAdhanChange, userSettings, onSettingsChange }) => {
+    countdownTarget: CountdownTarget | null;
+    selectedCountdownEvent: CountdownEvent;
+    onCountdownEventChange: (e: CountdownEvent) => void;
+}> = ({ prayerTimes, nextPrayer, locationName, error, onRetry, adhanAlarms, onToggleAdhanAlarm, onPlayAdhan, selectedAdhan, onAdhanChange, userSettings, onSettingsChange, countdownTarget, selectedCountdownEvent, onCountdownEventChange }) => {
     if (error) {
         return (
             <div className="mt-6 text-center text-yellow-300 bg-black/50 p-3 rounded-lg my-2 mx-4 text-sm flex flex-col items-center space-y-2">
@@ -459,8 +434,8 @@ const PrayerInfo: React.FC<{
     return (
         <div className="mt-6">
             <p className="text-sm mb-2 text-center font-bold uppercase tracking-wider">Jadwal Shalat</p>
-            {/* Updated Grid Layout for Desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2 px-4 mx-auto">
+            {/* Updated Grid Layout for Desktop: lg:grid-cols-6 ensures 6 items in one row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 px-4 mx-auto max-w-7xl">
                 {prayerNames.map(name => (
                      <PrayerTimeDisplay 
                         key={name}
@@ -488,6 +463,7 @@ const PrayerInfo: React.FC<{
             
             <LocationSettings settings={userSettings} onSettingsChange={onSettingsChange} />
             <AdhanSoundSelector selectedAdhan={selectedAdhan} onAdhanChange={onAdhanChange} onPlayAdhan={onPlayAdhan} />
+            {countdownTarget && <CountdownTimer target={countdownTarget} selectedEvent={selectedCountdownEvent} onEventChange={onCountdownEventChange} />}
         </div>
     );
 }
@@ -540,7 +516,7 @@ const WeatherWidget: React.FC<{ locationName: string | null }> = ({ locationName
             try {
                 const cityPart = locationName.split(',')[0];
                 if (!cityPart || cityPart.trim() === '' || cityPart.toLowerCase() === 'undefined') {
-                    setError(null); // Clear error if no valid city to fetch
+                    setError(null); 
                     setWeather(null);
                     return;
                 }
@@ -554,17 +530,17 @@ const WeatherWidget: React.FC<{ locationName: string | null }> = ({ locationName
                      throw new Error('Format data cuaca tidak valid.');
                 }
             } catch (err) {
-                // Suppressed detailed error for user experience
-                console.warn("Weather fetch warning:", err); 
-                setError('Gagal memuat cuaca.');
+                // Silently fail or show simple message instead of scary error
+                console.warn("Weather fetch error:", err);
+                setError('Info cuaca tidak tersedia saat ini.');
                 setWeather(null);
             }
         };
         fetchWeather();
     }, [locationName]);
 
-    if (error) return <div className="text-center text-xs text-yellow-400 mt-2 p-2">{error}</div>;
-    if (!weather) return <div className="text-center text-xs text-gray-400 mt-2 p-2">Memuat data cuaca...</div>; // Removed animate-pulse
+    if (error) return <div className="text-center text-[10px] text-gray-400 mt-2 p-1">{error}</div>;
+    if (!weather) return <div className="text-center text-xs text-gray-400 mt-2 p-2">Memuat data cuaca...</div>; 
     
     return (
         <div className="mt-4 p-2 text-center border-t border-[var(--border-color)]/20">
@@ -638,8 +614,18 @@ const App: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isQiblaModalOpen, setIsQiblaModalOpen] = useState(false);
     const [infoModalContent, setInfoModalContent] = useState<InfoModalContent>(null);
-    const [theme, setTheme] = useState<Theme>('auto');
-    const [zoom, setZoom] = useState(1.0); // Default zoom 100%
+    
+    // Theme & Zoom with Persistence
+    const [theme, setTheme] = useState<Theme>(() => {
+        try { return localStorage.getItem('hijriCalendarTheme') as Theme || 'auto'; } catch { return 'auto'; }
+    });
+    const [zoom, setZoom] = useState(() => {
+        try {
+            const savedZoom = localStorage.getItem('hijriCalendarZoom');
+            return savedZoom ? parseFloat(savedZoom) : (window.innerWidth < 768 ? 0.8 : 1.0);
+        } catch { return 1.0; }
+    });
+
     const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
     const [locationName, setLocationName] = useState<string | null>(null);
     const [nextPrayer, setNextPrayer] = useState<NextPrayer>({ name: null, time: null, countdown: '' });
@@ -665,7 +651,10 @@ const App: React.FC = () => {
         sahur: { isOn: false, time: '03:33' },
         dhuha: { isOn: false, time: '09:45' },
         jumat: { isOn: false, time: '11:15' },
-        shalat5Waktu: { isOn: false, time: '' }, // time is not used for 5-waktu toggle
+        shalat5Waktu: { isOn: false, time: '' }, 
+        dzikirPagi: { isOn: false, time: '05:00' },
+        dzikirPetang: { isOn: false, time: '17:00' },
+        doaJumat: { isOn: false, time: '17:30' }
     });
     const [activeAlarm, setActiveAlarm] = useState<{ name: keyof AlarmSettings; text: string } | null>(null);
     const [calendarAnimationClass, setCalendarAnimationClass] = useState('fade-in');
@@ -702,6 +691,10 @@ const App: React.FC = () => {
     const [isReadingMode, setIsReadingMode] = useState(false);
     const [adhanAlarms, setAdhanAlarms] = useState<AdhanAlarms>({});
     const [selectedAdhan, setSelectedAdhan] = useState('adhan1');
+    const [installPrompt, setInstallPrompt] = useState<any>(null);
+    const [lastPlayedAlarm, setLastPlayedAlarm] = useState<string | null>(null);
+    const [currentLang, setCurrentLang] = useState<'id' | 'en' | 'ar'>('id');
+    
     const synth = window.speechSynthesis;
     
     const isInitialLoad = useRef(true);
@@ -758,7 +751,16 @@ const App: React.FC = () => {
         if (!text || !synth) return;
         synth.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'id-ID';
+        
+        // Map language code to TTS locale
+        const localeMap: {[key: string]: string} = {
+            'id': 'id-ID',
+            'en': 'en-US',
+            'ar': 'ar-SA'
+        };
+        
+        utterance.lang = localeMap[currentLang] || 'id-ID';
+        utterance.volume = 1.0; // Ensure max volume
         synth.speak(utterance);
     };
 
@@ -783,19 +785,23 @@ const App: React.FC = () => {
         }
 
         if (soundToToggle) {
-            if (!soundToToggle.paused) {
-                soundToToggle.pause();
-                soundToToggle.currentTime = 0;
-                soundToToggle.onended = null;
-            } else {
-                soundToToggle.play().catch(e => console.error("Error playing sound:", e));
+            // Stop logic if already playing? No, alarm always plays from start
+            soundToToggle.pause();
+            soundToToggle.currentTime = 0;
+            
+            soundToToggle.play().then(() => {
                 if (ttsText) {
+                    // Important: Play TTS *after* the alarm sound finishes
                     soundToToggle.onended = () => {
                         speak(ttsText);
-                        soundToToggle.onended = null; // clean up
+                        soundToToggle.onended = null; // cleanup
                     };
                 }
-            }
+            }).catch(e => {
+                console.error("Error playing sound:", e);
+                // Fallback: speak immediately if audio fails
+                if(ttsText) speak(ttsText);
+            });
         }
     };
 
@@ -818,23 +824,39 @@ const App: React.FC = () => {
         }
     }, [selectedAdhan]);
 
-    const playAdhanAlarm = useCallback(() => {
+    const playAdhanAlarm = useCallback((prayerName?: string) => {
         const audio = adhanAudios.current[selectedAdhan];
         if (audio) {
             Object.values(adhanAudios.current).forEach((a: HTMLAudioElement) => {
                 a.pause();
                 a.currentTime = 0;
             });
-            audio.play().catch(e => console.error("Error playing Adhan alarm:", e));
+            audio.play().then(() => {
+                // If it's a prayer alarm, follow with TTS
+                if (prayerName) {
+                    // Get localized message
+                    const translatedPrayerName = PRAYER_NAMES_TRANSLATION[currentLang][prayerName] || prayerName;
+                    const messageTemplate = ALARM_MESSAGES[currentLang].shalat5Waktu;
+                    const tts = typeof messageTemplate === 'function' ? messageTemplate(translatedPrayerName) : messageTemplate;
+                    
+                    audio.onended = () => {
+                        speak(tts);
+                        audio.onended = null;
+                    };
+                }
+            }).catch(e => console.error("Error playing Adhan alarm:", e));
         }
-    }, [selectedAdhan]);
+    }, [selectedAdhan, currentLang]);
+    
+    // Check language on mount
+    useEffect(() => {
+        setCurrentLang(getLanguageFromCookie());
+    }, []);
     
     useEffect(() => {
         const timer = setTimeout(() => {
-            // Auto close welcome screen if no interaction, but mic permission won't be granted automatically
-            // We can keep it open or rely on the user clicking
+            // Auto close welcome screen
         }, 8000); 
-
         return () => clearTimeout(timer);
     }, []);
 
@@ -882,104 +904,26 @@ const App: React.FC = () => {
         return () => { (document.body.style as any).zoom = '1'; };
     }, [zoom]);
 
-    // Notification and Alarm Logic
     useEffect(() => {
-        // Load settings from local storage
-        try {
-            const savedSettings = localStorage.getItem('hijriCalendarUserSettings');
-            if (savedSettings) setUserSettings(JSON.parse(savedSettings));
-            
-            const savedAlarms = localStorage.getItem('hijriCalendarAlarms');
-            if (savedAlarms) setAlarms(JSON.parse(savedAlarms));
-
-            const savedAdhanAlarms = localStorage.getItem('hijriAdhanAlarms');
-            if (savedAdhanAlarms) setAdhanAlarms(JSON.parse(savedAdhanAlarms));
-
-            const savedAdhanSound = localStorage.getItem('hijriAdhanSound');
-            if (savedAdhanSound) setSelectedAdhan(savedAdhanSound);
-        } catch (error) {
-            console.error("Error loading settings from local storage", error);
-        }
-
-        const checkAlarms = () => {
-            const now = new Date();
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
-            const currentTimeStr = `${padZero(currentHour)}:${padZero(currentMinute)}`;
-
-            // Standard Alarms
-            Object.entries(alarms).forEach(([key, setting]) => {
-                if (key === 'shalat5Waktu') return; 
-                
-                const s = setting as { isOn: boolean, time: string };
-                if (s.isOn && s.time === currentTimeStr) {
-                    const lastTriggered = notificationTimeouts.current.get(key);
-                    if (!lastTriggered || (Date.now() - lastTriggered > 60000)) {
-                        const messageText = ALARM_MESSAGES[key as keyof typeof ALARM_MESSAGES] || `Waktunya ${key}`;
-                        const translatedText = getTranslatedMessage(messageText);
-                        
-                        setActiveAlarm({ name: key as keyof AlarmSettings, text: translatedText });
-                        playAlarmSound(alarmSound, translatedText);
-                        notificationTimeouts.current.set(key, Date.now());
-                    }
-                }
-            });
-
-            // Shalat 5-Waktu Alarm (10 minutes before)
-            if (alarms.shalat5Waktu.isOn && prayerTimes) {
-                const prayersToCheck: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-                prayersToCheck.forEach(prayer => {
-                    const pTime = prayerTimes[prayer];
-                    if (pTime) {
-                        const [pHour, pMinute] = pTime.split(':').map(Number);
-                        const prayerDate = new Date();
-                        prayerDate.setHours(pHour, pMinute, 0, 0);
-                        
-                        // Check 10 minutes before
-                        const checkDate = new Date(prayerDate.getTime() - 10 * 60000);
-                        if (checkDate.getHours() === currentHour && checkDate.getMinutes() === currentMinute) {
-                             const lastTriggeredKey = `5waktu-${prayer}`;
-                             const lastTriggered = notificationTimeouts.current.get(lastTriggeredKey);
-                             
-                             if (!lastTriggered || (Date.now() - lastTriggered > 60000)) {
-                                const prayerNameMap: Record<string, string> = { 'Fajr': 'Subuh', 'Dhuhr': 'Dzuhur', 'Asr': 'Ashar', 'Maghrib': 'Maghrib', 'Isha': 'Isya' };
-                                const pName = prayerNameMap[prayer];
-                                const rawMessage = ALARM_MESSAGES.shalat5Waktu;
-                                const translatedText = getTranslatedMessage(rawMessage, pName);
-
-                                setActiveAlarm({ name: 'shalat5Waktu', text: translatedText });
-                                playAlarmSound(alarmSound, translatedText);
-                                notificationTimeouts.current.set(lastTriggeredKey, Date.now());
-                             }
-                        }
-                    }
-                });
-            }
-
-            // Adhan Alarms
-            if (prayerTimes) {
-                (Object.keys(adhanAlarms) as PrayerName[]).forEach(prayer => {
-                    if (adhanAlarms[prayer]?.isOn) {
-                        const time = prayerTimes[prayer];
-                        if (time === currentTimeStr) {
-                             if (!triggeredAdhanToday.current[prayer]) {
-                                playAdhanAlarm();
-                                triggeredAdhanToday.current[prayer] = true;
-                                
-                                // Reset flag after 60 seconds
-                                setTimeout(() => {
-                                    triggeredAdhanToday.current[prayer] = undefined;
-                                }, 60000);
-                             }
-                        }
-                    }
-                });
-            }
+        const handler = (e: any) => {
+            e.preventDefault();
+            console.log("Install prompt captured");
+            setInstallPrompt(e);
         };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
 
-        const intervalId = setInterval(checkAlarms, 1000);
-        return () => clearInterval(intervalId);
-    }, [alarms, prayerTimes, alarmSound, adhanAlarms, selectedAdhan]); // Dependencies
+    const handleInstallClick = () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        installPrompt.userChoice.then((choiceResult: any) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+            }
+            setInstallPrompt(null);
+        });
+    };
 
     const handleUpdateSettings = useCallback((newSettings: UserSettings) => {
         setUserSettings(newSettings);
@@ -999,7 +943,74 @@ const App: React.FC = () => {
         });
     };
 
-    // ... [Alarm Interval Effect remains unchanged] ...
+    // ALARM CHECK LOGIC
+    const checkAlarms = useCallback(() => {
+        const now = new Date();
+        const currentTime = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+        
+        // Prevent multiple triggers within the same minute
+        if (lastPlayedAlarm === currentTime) return;
+
+        // Check Fixed Alarms
+        (Object.keys(alarms) as (keyof AlarmSettings)[]).forEach(key => {
+            if (key === 'shalat5Waktu') return; // Handled separately
+            
+            const alarm = alarms[key];
+            if (alarm.isOn && alarm.time === currentTime) {
+                // Determine text based on current language
+                const msg = ALARM_MESSAGES[currentLang][key];
+                let text = msg || `Waktunya ${key}`;
+                
+                setActiveAlarm({ name: key, text: text });
+                playAlarmSound(alarmSound, text);
+                setLastPlayedAlarm(currentTime);
+            }
+        });
+
+        // Check 5 Daily Prayers & Prayer-Specific Adhan Alarms
+        if (prayerTimes && adhanAlarms) {
+            const prayerNames: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+            
+            prayerNames.forEach(name => {
+                const time = prayerTimes[name];
+                if (!time) return;
+                // Parse time "HH:MM (WIB)" -> "HH:MM"
+                const cleanTime = time.split(' ')[0]; 
+                
+                if (cleanTime === currentTime) {
+                    const isActive = adhanAlarms[name]?.isOn || alarms.shalat5Waktu.isOn;
+                    
+                    if (isActive) {
+                        // Original key for API lookup
+                        const prayerKey = name; 
+                        
+                        // Play Adhan + TTS (Logic handled inside playAdhanAlarm with translation)
+                        playAdhanAlarm(prayerKey);
+                        
+                        // Get translated name for UI display
+                        const translatedName = PRAYER_NAMES_TRANSLATION[currentLang][name] || name;
+                        
+                        // Fallback text for popup if needed (playAdhanAlarm handles speech)
+                        const displayText = ALARM_MESSAGES[currentLang].shalat5Waktu(translatedName);
+
+                        setActiveAlarm({ 
+                            name: 'shalat5Waktu', 
+                            text: displayText 
+                        });
+                        setLastPlayedAlarm(currentTime);
+                    }
+                }
+            });
+        }
+
+    }, [alarms, adhanAlarms, prayerTimes, alarmSound, lastPlayedAlarm, playAdhanAlarm, currentLang]);
+
+    useEffect(() => {
+        alarmCheckIntervalRef.current = window.setInterval(checkAlarms, 1000); // Check every second
+        return () => {
+            if (alarmCheckIntervalRef.current) clearInterval(alarmCheckIntervalRef.current);
+        };
+    }, [checkAlarms]);
 
     const handleToggleAlarm = (alarmName: string, isOn: boolean) => {
         playClickSound();
@@ -1192,7 +1203,7 @@ const App: React.FC = () => {
                 setPrayerTimes(timings);
                 setLocationName(location);
             } catch (err) {
-                 console.warn("Failed to get prayer times with manual location:", err);
+                 console.error("Failed to get prayer times with manual location:", err);
                  setErrors(e => ({...e, prayer: 'Gagal memuat jadwal shalat. Pastikan nama kota & negara benar.'}));
             }
         };
@@ -1208,7 +1219,7 @@ const App: React.FC = () => {
                 setLocationName(locName);
                 setErrors(e => ({...e, prayer: "Akses lokasi gagal. Menampilkan waktu untuk Jakarta."}));
             } catch (err) {
-                 console.warn("Failed to get prayer times with default location:", err);
+                 console.error("Failed to get prayer times with default location:", err);
                  setErrors(e => ({...e, prayer: "Gagal memuat jadwal shalat. Periksa koneksi Anda."}));
             }
         };
@@ -1225,7 +1236,7 @@ const App: React.FC = () => {
                         setPrayerTimes(timings);
                         setLocationName(location);
                     } catch (err) {
-                         console.warn("Failed to get prayer times:", err);
+                         console.error("Failed to get prayer times:", err);
                          setErrors(e => ({...e, prayer: 'Gagal memuat jadwal shalat untuk lokasi Anda.'}));
                     }
                 },
@@ -1496,6 +1507,15 @@ const App: React.FC = () => {
     const retryPrayer = () => { playClickSound(); fetchPrayerData(); };
     const retryHolidays = () => { playClickSound(); fetchHolidaysData(); };
 
+    // Fetch next target on mount or when current date changes
+    useEffect(() => {
+        if (!today) return;
+        getNextCountdownTarget(today.hijri).then(target => {
+            setCountdownTarget(target);
+            setSelectedCountdownEvent(target.event); // Default to upcoming
+        });
+    }, [today]);
+
     const renderContent = () => {
         if (loading && calendarView !== 'yearly' && !calendarData) { return <CalendarSkeletonLoader />; }
         if (!today) { if (!loading && errors.calendar) return null; return <CalendarSkeletonLoader />; }
@@ -1626,18 +1646,22 @@ const App: React.FC = () => {
                     </div>
 
                     {calendarView === 'yearly' ? (
-                        <YearlyView 
-                            yearData={yearlyCalendarData}
-                            todayHijriDate={today.hijri.date}
-                            customEvents={filteredCustomEvents}
-                            customHijriEvents={filteredCustomHijriEvents}
-                            nationalHolidays={filteredNationalHolidays}
-                            onMonthClick={(monthDate) => {
-                                setViewDate(monthDate);
-                                setCalendarView('monthly');
-                            }}
-                            isLoading={loading}
-                        />
+                        <>
+                            <YearlyView 
+                                yearData={yearlyCalendarData}
+                                todayHijriDate={today.hijri.date}
+                                customEvents={filteredCustomEvents}
+                                customHijriEvents={filteredCustomHijriEvents}
+                                nationalHolidays={filteredNationalHolidays}
+                                onMonthClick={(monthDate) => {
+                                    setViewDate(monthDate);
+                                    setCalendarView('monthly');
+                                }}
+                                isLoading={loading}
+                            />
+                            {/* Legend is integrated here at bottom of yearly view logic */}
+                            <Legend />
+                        </>
                     ) : calendarView === 'daily' && currentDayData ? (
                         <DailyView 
                             day={currentDayData} 
@@ -1678,9 +1702,11 @@ const App: React.FC = () => {
                     )}
                     {!isReadingMode && (
                         <>
-                            <div className="border-t border-[var(--border-color)]/20 my-4"></div>
+                             {/* Clock and Weather */}
                             <CurrentTimeClock />
                             <WeatherWidget locationName={locationName} />
+                            
+                            {/* Prayer Info Section */}
                             <PrayerInfo 
                                 prayerTimes={prayerTimes} 
                                 nextPrayer={nextPrayer} 
@@ -1694,7 +1720,17 @@ const App: React.FC = () => {
                                 onAdhanChange={handleAdhanChange}
                                 userSettings={userSettings}
                                 onSettingsChange={handleUpdateSettings}
+                                countdownTarget={countdownTarget}
+                                selectedCountdownEvent={selectedCountdownEvent}
+                                onCountdownEventChange={async (event) => {
+                                    // Calculate new target when event changes manually in timer
+                                    if(!today) return;
+                                    setSelectedCountdownEvent(event);
+                                    const target = await getSpecificCountdownTarget(event, today.hijri);
+                                    setCountdownTarget(target);
+                                }}
                             />
+                            
                             <div className="my-6">
                                 <DateConverter />
                             </div>
@@ -1789,6 +1825,11 @@ const App: React.FC = () => {
                                 <h1 className="text-xl sm:text-2xl font-bold text-center">Kalender Hijriah</h1>
                                 <div className="flex items-center space-x-1">
                                 <button onClick={() => setIsSearchVisible(v => !v)} className="p-2"><SearchIcon /></button>
+                                {installPrompt && (
+                                    <button onClick={handleInstallClick} className="p-2 text-yellow-400 animate-pulse" title="Install App">
+                                        <InstallIcon className="w-6 h-6" />
+                                    </button>
+                                )}
                                 <button onClick={() => { playClickSound(); setIsMenuOpen(prev => !prev); }} className="p-2"><MenuIcon /></button>
                                 <DropdownMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onAction={handleMenuClick}/>
                                 </div>
@@ -1810,7 +1851,7 @@ const App: React.FC = () => {
                             </div>
                             
                             <div className="marquee text-sm my-2">
-                            <span>Untuk mendapatkan hasil perhitungan tanggal Hijriah dan jadwal shalat yang akurat, pastikan settingan lokasi di device sudah di aktifkan (status on). Untuk informasi selengkapnya klik masing-masing icon di bagian atas</span>
+                            <span>Untuk mendapatkan hasil perhitungan tanggal Hijriah dan jadwal shalat yang akurat, pastikan setingan lokasi di device sudah di aktifkan (status on). Untuk informasi selengkapnya klik masing-masing icon di bagian atas</span>
                             </div>
                         </>
                     )}
@@ -1831,7 +1872,6 @@ const App: React.FC = () => {
 
                     {!isReadingMode && (
                         <>
-                            {countdownTarget && <CountdownTimer target={countdownTarget} selectedEvent={selectedCountdownEvent} onEventChange={setSelectedCountdownEvent} />}
                             <div className="px-2 sm:px-0">
                                 <DailyFact fact={dailyFact} />
                             </div>
@@ -1874,7 +1914,12 @@ const App: React.FC = () => {
                 </button>
             )}
             {!isReadingMode && location && <ChatBot location={location} prayerTimes={prayerTimes} sahurPopupText={activeAlarm?.name === 'sahur' ? activeAlarm.text : null} isOpen={isChatBotOpen} setIsOpen={setIsChatBotOpen} initialMessage={chatBotInitialMessage} onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)} />}
-            <VoiceAssistant isOpen={isVoiceAssistantOpen} onClose={() => setIsVoiceAssistantOpen(false)} />
+            <VoiceAssistant 
+                isOpen={isVoiceAssistantOpen} 
+                onClose={() => setIsVoiceAssistantOpen(false)}
+                alarms={alarms}
+                onToggleAlarm={handleToggleAlarm}
+            />
              {!isChatBotOpen && !isReadingMode && (
                 <div className="chatbot-cta-container">
                     <button

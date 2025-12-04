@@ -125,7 +125,12 @@ export type AlarmSettings = {
     jumat: AlarmSetting;
     tidur: AlarmSetting;
     shalat5Waktu: { isOn: boolean; time: string }; // Time is generic here, logic handles individual prayers
+    dzikirPagi: AlarmSetting;
+    dzikirPetang: AlarmSetting;
+    doaJumat: AlarmSetting;
 };
+
+export type VoiceAlarmSettings = AlarmSettings;
 
 export type AlarmSound = 'default' | 'thaha' | 'muflih';
 
@@ -157,3 +162,32 @@ export interface MonthlyPrayerDay {
 }
 
 export type CalendarFormat = 'hijri-masehi' | 'hijri' | 'masehi';
+
+export interface ConversionResult {
+  gregorianDate: string;
+  dayOfWeek: string;
+  significance: string;
+  historicalEvents: string[];
+}
+
+export const HIJRI_MONTHS = [
+    { value: 1, label: 'Muharram' },
+    { value: 2, label: 'Safar' },
+    { value: 3, label: 'Rabiul Awal' },
+    { value: 4, label: 'Rabiul Akhir' },
+    { value: 5, label: 'Jumadil Awal' },
+    { value: 6, label: 'Jumadil Akhir' },
+    { value: 7, label: 'Rajab' },
+    { value: 8, label: "Sya'ban" },
+    { value: 9, label: 'Ramadhan' },
+    { value: 10, label: 'Syawal' },
+    { value: 11, label: "Dzulqa'dah" },
+    { value: 12, label: 'Dzulhijjah' },
+];
+
+export interface VoiceAssistantProps {
+    isOpen: boolean;
+    onClose: () => void;
+    alarms: AlarmSettings;
+    onToggleAlarm: (alarmName: string, isOn: boolean) => void;
+}

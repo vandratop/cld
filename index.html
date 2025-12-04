@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hijriyah Cyber Calendar</title>
+    <title>Digital Kalender Hijriah - Jadwal Shalat & AI Assistant</title>
+    <meta name="description" content="Aplikasi Digital Kalender Hijriah dan Masehi lengkap dengan jadwal shalat, arah kiblat, notifikasi puasa sunnah, dan AI Assistant Islami." />
+    <meta name="keywords" content="Kalender Hijriah, Jadwal Shalat, Arah Kiblat, Puasa Sunnah, Ramadhan, Idul Fitri, Idul Adha, AI Islami, Digital Calendar" />
+    <meta name="theme-color" content="#002b25" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,7 +28,7 @@
         --text-color-light: #C1FF72;
         --text-color-muted: #00FDFD;
         --container-bg-rgb: 0, 89, 76; /* #00594C */
-        --container-bg-opacity: 0.8;
+        --container-bg-opacity: 0.95;
         --border-color: #00ffdf;
         --button-text-color: #ffffff;
         --header-text-color: #00594C;
@@ -31,17 +37,17 @@
         --today-text-color: #00594C;
         --countdown-box-bg: #009D81;
         --chatbot-bg-rgb: 0, 43, 37; /* #002b25 */
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #0E7490;
         --model-bubble-bg: #4B5563;
         --header-hijri-text-color: #1FCB0A;
         --header-gregorian-text-color: #ffffff;
         --running-text-color: #FFFF00; /* Yellow for dark mode */
 
-        /* Updated Neon Intensity to 80 (Smoother) */
-        --neon-text-shadow: 0 0 4px #00ffdf, 0 0 8px #00ffdf, 0 0 16px #00ffdf;
-        --neon-text-white-shadow: 0 0 4px #fff, 0 0 8px #fff;
-        --neon-button-shadow: 0 0 4px #00ffdf, 0 0 8px #00ffdf, inset 0 0 4px #00ffdf;
+        /* Updated Neon Intensity to 80 (Smoother) - Softened shadows */
+        --neon-text-shadow: 0 0 2px #00ffdf, 0 0 5px #00ffdf, 0 0 10px #00ffdf;
+        --neon-text-white-shadow: 0 0 2px #fff, 0 0 5px #fff;
+        --neon-button-shadow: 0 0 3px #00ffdf, 0 0 6px #00ffdf, inset 0 0 3px #00ffdf;
       }
 
       body.light {
@@ -51,7 +57,7 @@
         --text-color-light: #00796B;
         --text-color-muted: #00796B;
         --container-bg-rgb: 255, 255, 255;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #00796B;
         --button-text-color: #ffffff;
         --header-text-color: #004D40;
@@ -60,16 +66,16 @@
         --today-text-color: #E0F2F1;
         --countdown-box-bg: #B2DFDB;
         --chatbot-bg-rgb: 240, 240, 240;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #CFD8DC;
         --model-bubble-bg: #ECEFF1;
         --header-hijri-text-color: #00796B;
         --header-gregorian-text-color: #004D40;
         --running-text-color: #FF0000; /* Red for light mode */
 
-        --neon-text-shadow: 0 0 6px #00796B;
+        --neon-text-shadow: 0 0 3px #00796B;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 6px #00796B;
+        --neon-button-shadow: 0 0 3px #00796B;
       }
       
       body.theme-yellow-light {
@@ -79,7 +85,7 @@
         --text-color-light: #AFB42B;
         --text-color-muted: #F9A825;
         --container-bg-rgb: 255, 249, 196;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #FBC02D;
         --button-text-color: #5D4037;
         --header-text-color: #5D4037;
@@ -88,15 +94,15 @@
         --today-text-color: #5D4037;
         --countdown-box-bg: #FFF59D;
         --chatbot-bg-rgb: 255, 253, 231;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #FFECB3;
         --model-bubble-bg: #FFF9C4;
         --header-hijri-text-color: #AFB42B;
         --header-gregorian-text-color: #5D4037;
         --running-text-color: #D32F2F;
-        --neon-text-shadow: 0 0 6px #FBC02D;
+        --neon-text-shadow: 0 0 3px #FBC02D;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 6px #FBC02D;
+        --neon-button-shadow: 0 0 3px #FBC02D;
       }
 
       body.theme-blue-light {
@@ -106,7 +112,7 @@
         --text-color-light: #42A5F5;
         --text-color-muted: #1565C0;
         --container-bg-rgb: 227, 242, 253;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #1976D2;
         --button-text-color: #FFFFFF;
         --header-text-color: #0D47A1;
@@ -115,15 +121,15 @@
         --today-text-color: #FFFFFF;
         --countdown-box-bg: #90CAF9;
         --chatbot-bg-rgb: 227, 242, 253;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #B3E5FC;
         --model-bubble-bg: #E1F5FE;
         --header-hijri-text-color: #0D47A1;
         --header-gregorian-text-color: #0D47A1;
         --running-text-color: #C62828;
-        --neon-text-shadow: 0 0 6px #1976D2;
+        --neon-text-shadow: 0 0 3px #1976D2;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 6px #1976D2;
+        --neon-button-shadow: 0 0 3px #1976D2;
       }
 
       body.theme-brown-light {
@@ -133,7 +139,7 @@
         --text-color-light: #8D6E63;
         --text-color-muted: #5D4037;
         --container-bg-rgb: 239, 235, 233;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #6D4C41;
         --button-text-color: #FFFFFF;
         --header-text-color: #4E342E;
@@ -142,15 +148,15 @@
         --today-text-color: #FFFFFF;
         --countdown-box-bg: #BCAAA4;
         --chatbot-bg-rgb: 239, 235, 233;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #C5E1A5;
         --model-bubble-bg: #F1F8E9;
         --header-hijri-text-color: #3E2723;
         --header-gregorian-text-color: #4E342E;
         --running-text-color: #BF360C;
-        --neon-text-shadow: 0 0 6px #6D4C41;
+        --neon-text-shadow: 0 0 3px #6D4C41;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 6px #6D4C41;
+        --neon-button-shadow: 0 0 3px #6D4C41;
       }
       
       body.theme-pink-light {
@@ -160,7 +166,7 @@
         --text-color-light: #EC407A;
         --text-color-muted: #C2185B;
         --container-bg-rgb: 252, 228, 236;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #D81B60;
         --button-text-color: #FFFFFF;
         --header-text-color: #880E4F;
@@ -169,15 +175,15 @@
         --today-text-color: #FFFFFF;
         --countdown-box-bg: #F48FB1;
         --chatbot-bg-rgb: 252, 228, 236;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #F06292;
         --model-bubble-bg: #FCE4EC;
         --header-hijri-text-color: #880E4F;
         --header-gregorian-text-color: #880E4F;
         --running-text-color: #AD1457;
-        --neon-text-shadow: 0 0 6px #D81B60;
+        --neon-text-shadow: 0 0 3px #D81B60;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 6px #D81B60;
+        --neon-button-shadow: 0 0 3px #D81B60;
       }
       
       body.theme-purple-light {
@@ -187,7 +193,7 @@
         --text-color-light: #AB47BC;
         --text-color-muted: #7B1FA2;
         --container-bg-rgb: 243, 229, 245;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #8E24AA;
         --button-text-color: #FFFFFF;
         --header-text-color: #4A148C;
@@ -196,15 +202,15 @@
         --today-text-color: #FFFFFF;
         --countdown-box-bg: #CE93D8;
         --chatbot-bg-rgb: 243, 229, 245;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #D1C4E9;
         --model-bubble-bg: #F3E5F5;
         --header-hijri-text-color: #4A148C;
         --header-gregorian-text-color: #4A148C;
         --running-text-color: #6A1B9A;
-        --neon-text-shadow: 0 0 6px #8E24AA;
+        --neon-text-shadow: 0 0 3px #8E24AA;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 6px #8E24AA;
+        --neon-button-shadow: 0 0 3px #8E24AA;
       }
       
       body.theme-gray-dark {
@@ -214,7 +220,7 @@
         --text-color-light: #BDBDBD;
         --text-color-muted: #9E9E9E;
         --container-bg-rgb: 48, 48, 48;
-        --container-bg-opacity: 0.85;
+        --container-bg-opacity: 0.95;
         --border-color: #757575;
         --button-text-color: #212121;
         --header-text-color: #212121;
@@ -223,15 +229,15 @@
         --today-text-color: #212121;
         --countdown-box-bg: #424242;
         --chatbot-bg-rgb: 33, 33, 33;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #616161;
         --model-bubble-bg: #424242;
         --header-hijri-text-color: #00E5FF;
         --header-gregorian-text-color: #E0E0E0;
         --running-text-color: #FAFAFA;
-        --neon-text-shadow: 0 0 4px #00E5FF, 0 0 8px #00E5FF;
-        --neon-text-white-shadow: 0 0 4px #fff, 0 0 8px #fff;
-        --neon-button-shadow: 0 0 4px #757575, 0 0 8px #757575, inset 0 0 4px #757575;
+        --neon-text-shadow: 0 0 3px #00E5FF, 0 0 6px #00E5FF;
+        --neon-text-white-shadow: 0 0 3px #fff, 0 0 6px #fff;
+        --neon-button-shadow: 0 0 3px #757575, 0 0 6px #757575, inset 0 0 3px #757575;
       }
 
       body.theme-ramadan {
@@ -241,7 +247,7 @@
         --text-color-light: #F5DEB3;
         --text-color-muted: #DAA520;
         --container-bg-rgb: 1, 30, 22;
-        --container-bg-opacity: 0.85;
+        --container-bg-opacity: 0.95;
         --border-color: #FFD700;
         --button-text-color: #013220;
         --header-text-color: #013220;
@@ -250,14 +256,14 @@
         --today-text-color: #013220;
         --countdown-box-bg: #8B4513;
         --chatbot-bg-rgb: 1, 30, 22;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #8B4513;
         --model-bubble-bg: #556B2F;
         --header-hijri-text-color: #FFD700;
         --header-gregorian-text-color: #F0E68C;
         --running-text-color: #FFD700;
-        --neon-text-shadow: 0 0 4px #FFD700, 0 0 8px #FFD700;
-        --neon-button-shadow: 0 0 4px #FFD700, 0 0 8px #FFD700, inset 0 0 4px #FFD700;
+        --neon-text-shadow: 0 0 3px #FFD700, 0 0 6px #FFD700;
+        --neon-button-shadow: 0 0 3px #FFD700, 0 0 6px #FFD700, inset 0 0 3px #FFD700;
         background-image: url('https://www.transparenttextures.com/patterns/arabesque.png');
       }
 
@@ -268,7 +274,7 @@
         --text-color-light: #B8860B;
         --text-color-muted: #424242;
         --container-bg-rgb: 250, 250, 250;
-        --container-bg-opacity: 0.9;
+        --container-bg-opacity: 0.98;
         --border-color: #DAA520;
         --button-text-color: #FFFFFF;
         --header-text-color: #212121;
@@ -277,15 +283,15 @@
         --today-text-color: #FFFFFF;
         --countdown-box-bg: #F0E68C;
         --chatbot-bg-rgb: 250, 250, 250;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #E0E0E0;
         --model-bubble-bg: #F5F5F5;
         --header-hijri-text-color: #DAA520;
         --header-gregorian-text-color: #212121;
         --running-text-color: #D32F2F;
-        --neon-text-shadow: 0 0 4px #DAA520;
+        --neon-text-shadow: 0 0 3px #DAA520;
         --neon-text-white-shadow: none;
-        --neon-button-shadow: 0 0 4px #DAA520;
+        --neon-button-shadow: 0 0 3px #DAA520;
       }
 
       body.theme-emerald-dark {
@@ -295,7 +301,7 @@
         --text-color-light: #CFD8DC;
         --text-color-muted: #90A4AE;
         --container-bg-rgb: 0, 77, 64;
-        --container-bg-opacity: 0.85;
+        --container-bg-opacity: 0.95;
         --border-color: #78909C;
         --button-text-color: #004d40;
         --header-text-color: #004d40;
@@ -304,15 +310,15 @@
         --today-text-color: #004d40;
         --countdown-box-bg: #00695C;
         --chatbot-bg-rgb: 0, 60, 51;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #37474F;
         --model-bubble-bg: #263238;
         --header-hijri-text-color: #B0BEC5;
         --header-gregorian-text-color: #E0F2F1;
         --running-text-color: #FFFFFF;
-        --neon-text-shadow: 0 0 4px #B0BEC5, 0 0 8px #B0BEC5;
-        --neon-text-white-shadow: 0 0 4px #fff, 0 0 8px #fff;
-        --neon-button-shadow: 0 0 4px #78909C, 0 0 8px #78909C, inset 0 0 4px #78909C;
+        --neon-text-shadow: 0 0 3px #B0BEC5, 0 0 6px #B0BEC5;
+        --neon-text-white-shadow: 0 0 3px #fff, 0 0 6px #fff;
+        --neon-button-shadow: 0 0 3px #78909C, 0 0 6px #78909C, inset 0 0 3px #78909C;
       }
 
       body.theme-lapis-dark {
@@ -322,7 +328,7 @@
         --text-color-light: #FFEE58;
         --text-color-muted: #BBDEFB;
         --container-bg-rgb: 13, 71, 161;
-        --container-bg-opacity: 0.85;
+        --container-bg-opacity: 0.95;
         --border-color: #FFC107;
         --button-text-color: #0D47A1;
         --header-text-color: #0D47A1;
@@ -331,15 +337,15 @@
         --today-text-color: #0D47A1;
         --countdown-box-bg: #1565C0;
         --chatbot-bg-rgb: 10, 56, 129;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #1E88E5;
         --model-bubble-bg: #1976D2;
         --header-hijri-text-color: #FFD700;
         --header-gregorian-text-color: #E3F2FD;
         --running-text-color: #FFFF00;
-        --neon-text-shadow: 0 0 4px #FFD700, 0 0 8px #FFD700;
-        --neon-text-white-shadow: 0 0 4px #fff, 0 0 8px #fff;
-        --neon-button-shadow: 0 0 4px #FFC107, 0 0 8px #FFC107, inset 0 0 4px #FFC107;
+        --neon-text-shadow: 0 0 3px #FFD700, 0 0 6px #FFD700;
+        --neon-text-white-shadow: 0 0 3px #fff, 0 0 6px #fff;
+        --neon-button-shadow: 0 0 3px #FFC107, 0 0 6px #FFC107, inset 0 0 3px #FFC107;
       }
       
       body.theme-hijriah-dark {
@@ -349,7 +355,7 @@
         --text-color-light: #f0e68c;
         --text-color-muted: #b8860b;
         --container-bg-rgb: 26, 26, 26;
-        --container-bg-opacity: 0.85;
+        --container-bg-opacity: 0.95;
         --border-color: #d4af37;
         --button-text-color: #1a1a1a;
         --header-text-color: #1a1a1a;
@@ -358,14 +364,14 @@
         --today-text-color: #1a1a1a;
         --countdown-box-bg: #4a412a;
         --chatbot-bg-rgb: 20, 20, 20;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #8b4513;
         --model-bubble-bg: #556b2f;
         --header-hijri-text-color: #d4af37;
         --header-gregorian-text-color: #e0cda9;
         --running-text-color: #d4af37;
-        --neon-text-shadow: 0 0 4px #d4af37, 0 0 8px #d4af37;
-        --neon-button-shadow: 0 0 4px #d4af37, 0 0 8px #d4af37, inset 0 0 4px #d4af37;
+        --neon-text-shadow: 0 0 3px #d4af37, 0 0 6px #d4af37;
+        --neon-button-shadow: 0 0 3px #d4af37, 0 0 6px #d4af37, inset 0 0 3px #d4af37;
         background-image: url('https://www.transparenttextures.com/patterns/pinstripe-dark.png');
       }
 
@@ -376,7 +382,7 @@
         --text-color-light: #ffffff;
         --text-color-muted: #89cff0;
         --container-bg-rgb: 7, 25, 82;
-        --container-bg-opacity: 0.85;
+        --container-bg-opacity: 0.95;
         --border-color: #97feed;
         --button-text-color: #071952;
         --header-text-color: #071952;
@@ -385,14 +391,14 @@
         --today-text-color: #071952;
         --countdown-box-bg: #0b2f8a;
         --chatbot-bg-rgb: 5, 20, 70;
-        --chatbot-bg-opacity: 0.95;
+        --chatbot-bg-opacity: 0.98;
         --user-bubble-bg: #1e88e5;
         --model-bubble-bg: #1976d2;
         --header-hijri-text-color: #97feed;
         --header-gregorian-text-color: #e0f2f1;
         --running-text-color: #97feed;
-        --neon-text-shadow: 0 0 4px #97feed, 0 0 8px #97feed;
-        --neon-button-shadow: 0 0 4px #97feed, 0 0 8px #97feed, inset 0 0 4px #97feed;
+        --neon-text-shadow: 0 0 3px #97feed, 0 0 6px #97feed;
+        --neon-button-shadow: 0 0 3px #97feed, 0 0 6px #97feed, inset 0 0 3px #97feed;
         background-image: url('https://www.transparenttextures.com/patterns/skulls.png');
       }
 
@@ -415,6 +421,9 @@
         background-color: var(--bg-color);
         color: var(--text-color);
         transition: background-color 0.3s, color 0.3s;
+        /* Protect against copy paste */
+        user-select: none;
+        -webkit-user-select: none;
       }
 
       .main-container {
@@ -763,6 +772,9 @@
         color: var(--text-color-secondary);
         text-shadow: var(--neon-text-shadow);
       }
+      .high-contrast-text {
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+      }
     </style>
   <script type="importmap">
 {
@@ -774,13 +786,14 @@
     "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
     "path": "https://aistudiocdn.com/path@^0.12.7",
     "vite": "https://aistudiocdn.com/vite@^7.2.2",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
   }
 }
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
+  <body oncontextmenu="return false;">
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <div id="print-area"></div>
@@ -794,5 +807,18 @@
       }
     </script>
     <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

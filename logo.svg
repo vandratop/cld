@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="cyber-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00ffdf;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00594C;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#002b25" rx="100" />
+  
+  <!-- Geometric Pattern Background -->
+  <path d="M256 50 L462 156 L462 356 L256 462 L50 356 L50 156 Z" fill="none" stroke="#00594C" stroke-width="5" opacity="0.5"/>
+  <path d="M256 100 L390 170 L390 342 L256 412 L122 342 L122 170 Z" fill="none" stroke="#00594C" stroke-width="5" opacity="0.7"/>
+
+  <!-- Crescent Moon -->
+  <path d="M300 130 A130 130 0 1 1 220 420 A100 100 0 1 0 300 130 Z" fill="none" stroke="url(#cyber-grad)" stroke-width="15" stroke-linecap="round" filter="url(#neon-glow)"/>
+  
+  <!-- Star / Digital Node -->
+  <circle cx="360" cy="220" r="25" fill="#C1FF72" filter="url(#neon-glow)" />
+  
+  <!-- Circuit lines connecting moon to star -->
+  <path d="M360 245 L360 300 L276 350" fill="none" stroke="#00FDFD" stroke-width="8" stroke-linecap="round" filter="url(#neon-glow)" />
+  <circle cx="276" cy="350" r="10" fill="#00FDFD" />
+  
+  <!-- H Initial -->
+  <text x="180" y="320" font-family="monospace" font-weight="bold" font-size="100" fill="#ffffff" opacity="0.8">H</text>
+</svg>

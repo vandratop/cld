@@ -1,0 +1,21 @@
+{
+  "name": "Digital Kalender Hijriah",
+  "short_name": "HijriCalendar",
+  "description": "Kalender Hijriah dan Masehi dengan jadwal shalat dan AI Assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#002b25",
+  "theme_color": "#002b25",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
