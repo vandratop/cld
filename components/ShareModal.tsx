@@ -1,4 +1,3 @@
-
 import React, { RefObject, useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -95,24 +94,24 @@ const ShareableMonthlyPrayer: React.FC<{ data: MonthlyPrayerDay[], locationName:
             <h3 className="text-2xl font-bold text-center text-[var(--text-color-secondary)]">Jadwal Shalat Bulanan</h3>
             <p className="text-center text-lg">{`${monthName} ${year}`}</p>
             <p className="text-center text-sm mb-4">{locationName}</p>
-            <table className="w-full text-center text-xs">
-                <thead className="calendar-header">
+            <table className="w-full text-center text-xs text-black bg-white rounded-lg overflow-hidden">
+                <thead className="bg-gray-200">
                     <tr>
                         {['Date', 'Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map(h => (
-                            <th key={h} className="p-2">{h}</th>
+                            <th key={h} className="p-2 border border-gray-300">{h}</th>
                         ))}
                     </tr>
                 </thead>
                 <tbody>
                     {data.map(day => (
-                        <tr key={day.date.readable} className="border-b border-[var(--border-color)]/20">
-                            <td className="p-2">{day.date.gregorian.day}</td>
-                            <td className="p-2 font-clock">{day.timings.Fajr?.split(' ')[0]}</td>
-                            <td className="p-2 font-clock">{day.timings.Sunrise?.split(' ')[0]}</td>
-                            <td className="p-2 font-clock">{day.timings.Dhuhr?.split(' ')[0]}</td>
-                            <td className="p-2 font-clock">{day.timings.Asr?.split(' ')[0]}</td>
-                            <td className="p-2 font-clock">{day.timings.Maghrib?.split(' ')[0]}</td>
-                            <td className="p-2 font-clock">{day.timings.Isha?.split(' ')[0]}</td>
+                        <tr key={day.date.readable} className="border-b border-gray-300">
+                            <td className="p-2 border border-gray-300">{day.date.gregorian.day}</td>
+                            <td className="p-2 font-clock border border-gray-300">{day.timings.Fajr?.split(' ')[0]}</td>
+                            <td className="p-2 font-clock border border-gray-300">{day.timings.Sunrise?.split(' ')[0]}</td>
+                            <td className="p-2 font-clock border border-gray-300">{day.timings.Dhuhr?.split(' ')[0]}</td>
+                            <td className="p-2 font-clock border border-gray-300">{day.timings.Asr?.split(' ')[0]}</td>
+                            <td className="p-2 font-clock border border-gray-300">{day.timings.Maghrib?.split(' ')[0]}</td>
+                            <td className="p-2 font-clock border border-gray-300">{day.timings.Isha?.split(' ')[0]}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -200,72 +199,83 @@ const ShareableComponent: React.FC<Omit<ShareModalProps, 'isOpen'|'onClose'|'tar
 
     let content: React.ReactNode = null;
     let containerWidth = '480px';
+    
+    // Explicit background to ensure capture works correctly
+    const containerStyle = {
+         width: containerWidth, 
+         backgroundColor: '#002b25', // Default dark for capture safety
+         color: '#ffffff',
+         fontFamily: "'Exo 2', sans-serif"
+    };
 
     switch (shareMode.type) {
         case 'monthlyCalendar':
             if (props.calendarData) {
                 containerWidth = '480px';
+                containerStyle.width = containerWidth;
                 content = <>
                     {<HeaderInfo today={props.today} />}
                     <CalendarGrid 
                         days={props.calendarData.days} view="monthly" todayHijriDate={props.today.hijri.date} onDayClick={() => {}} customEvents={props.customEvents} customHijriEvents={[]}
-                        nationalHolidays={props.nationalHolidays} isPrintable={true} hijriHolidays={new Map()} calendarFormat='hijri-masehi' />
+                        nationalHolidays={props.nationalHolidays} isPrintable={true} hijriHolidays={new Map()} />
                     <Legend isPrintable={true} />
                 </>;
             }
             break;
         case 'dailyCalendar':
-            if (props.calendarData) {
-                // Find current day in calendar data
-                const day = props.calendarData.days.find(d => 
-                    parseInt(d.gregorian.day) === props.viewDate.getDate() &&
-                    d.gregorian.month.number === (props.viewDate.getMonth() + 1)
-                );
-                
-                if (day) {
-                    containerWidth = '480px';
-                    content = <>
-                        {<HeaderInfo today={props.today} />}
-                        <DailyView 
-                            day={day} 
-                            format='hijri-masehi' 
-                            onDayClick={() => {}} 
-                            customEvents={props.customEvents} 
-                            customHijriEvents={[]} 
-                            nationalHolidays={props.nationalHolidays} 
-                            hijriHolidays={new Map()} 
-                        />
-                    </>;
-                }
-            }
-            break;
+             if (props.calendarData) {
+                 // find today in data
+                 const todayInCal = props.calendarData.days.find(d => d.gregorian.date === props.today!.gregorian.date) || props.today;
+                 containerWidth = '400px';
+                 containerStyle.width = containerWidth;
+                 content = (
+                     <DailyView 
+                         day={todayInCal}
+                         format="hijri-masehi"
+                         onDayClick={() => {}}
+                         customEvents={props.customEvents}
+                         customHijriEvents={[]}
+                         nationalHolidays={props.nationalHolidays}
+                         hijriHolidays={new Map()}
+                     />
+                 );
+             }
+             break;
         case 'yearlyCalendar':
             containerWidth = '800px';
+            containerStyle.width = containerWidth;
+            // Override styles for larger fonts in Yearly view share
             content = <>
-                <h2 className="text-3xl font-bold text-center my-2 text-[var(--text-color-secondary)]">{props.viewDate.getFullYear()}</h2>
-                <YearlyView yearData={props.yearlyCalendarData} todayHijriDate={props.today.hijri.date} customEvents={props.customEvents} customHijriEvents={[]}
-                    nationalHolidays={props.nationalHolidays} onMonthClick={() => {}} isLoading={false} isPrintable={true} />
+                <h2 className="text-4xl font-bold text-center my-4 text-[var(--text-color-secondary)]">{props.viewDate.getFullYear()}</h2>
+                <div className="text-xl"> {/* wrapper to bump up font size inside grid */}
+                    <YearlyView yearData={props.yearlyCalendarData} todayHijriDate={props.today.hijri.date} customEvents={props.customEvents} customHijriEvents={[]}
+                        nationalHolidays={props.nationalHolidays} onMonthClick={() => {}} isLoading={false} isPrintable={true} />
+                </div>
+                <Legend isPrintable={true} />
             </>;
             break;
         case 'dailyPrayer':
             containerWidth = '400px';
+            containerStyle.width = containerWidth;
             content = <ShareableDailyPrayer {...props} />;
             break;
         case 'monthlyPrayer':
             if (monthlyPrayerData) {
                 containerWidth = '800px';
+                containerStyle.width = containerWidth;
                 content = <ShareableMonthlyPrayer data={monthlyPrayerData} locationName={props.locationName || ''} viewDate={props.viewDate} />;
             }
             break;
         case 'countdown':
             containerWidth = '420px';
+            containerStyle.width = containerWidth;
             content = <ShareableCountdown today={props.today} target={shareCountdownTarget} />;
             break;
     }
 
     return (
-        <div className={document.body.className} style={{ width: containerWidth, backgroundColor: 'var(--bg-color)', color: 'var(--text-color)', fontFamily: "'Exo 2', sans-serif" }}>
-            <div className="main-container cyber-border p-4 rounded-lg" style={{ backgroundColor: `rgba(var(--container-bg-rgb), var(--container-bg-opacity))`}}>
+        <div style={containerStyle}>
+            <div className="main-container cyber-border p-4 rounded-lg" style={{ backgroundColor: `rgba(0, 89, 76, 1)` }}>
                {content}
                <p className="text-center text-xs mt-4">by Te_eR Inovative @ {new Date().getFullYear()}</p>
             </div>
@@ -337,6 +347,8 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
         tempContainer.style.top = '-9999px';
+        // Ensure no transparency bleed through
+        tempContainer.style.backgroundColor = '#000'; 
         document.body.appendChild(tempContainer);
         
         try {
@@ -345,11 +357,12 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                 root.render(<ShareableComponent {...props} shareMode={shareMode} monthlyPrayerData={monthlyPrayerData} shareCountdownTarget={shareCountdownTarget} />);
             });
 
-            await new Promise(resolve => setTimeout(resolve, 500)); // wait for images
+            await new Promise(resolve => setTimeout(resolve, 800)); // wait for images and fonts
 
             const canvas = await html2canvas(tempContainer.firstChild as HTMLElement, {
                 useCORS: true,
                 scale: 2,
+                backgroundColor: '#002b25', // Force dark background for image
             });
 
             const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -458,7 +471,7 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
             const event = value.replace('countdown_', '') as CountdownEvent;
             setShareMode({ type: 'countdown', event });
         } else {
-            setShareMode({ type: value as 'monthlyCalendar' | 'yearlyCalendar' | 'dailyPrayer' | 'monthlyPrayer' | 'dailyCalendar' });
+            setShareMode({ type: value as 'monthlyCalendar' | 'dailyCalendar' | 'yearlyCalendar' | 'dailyPrayer' | 'monthlyPrayer' });
         }
     };
 
@@ -475,11 +488,11 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                         <img src={generatedImage} alt="Pratinjau Kalender" className="w-full rounded" />
                     </div>
                     <div className="grid grid-cols-2 gap-2 mt-4">
-                        <button onClick={handleShareNow} disabled={isProcessing} className="w-full flex justify-center items-center space-x-2 p-2 bg-cyan-600 hover:bg-cyan-500 rounded-md disabled:opacity-50 text-white">
+                        <button onClick={handleShareNow} disabled={isProcessing} className="w-full flex justify-center items-center space-x-2 p-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-md disabled:opacity-50">
                             <ShareIcon className="w-5 h-5"/>
                             <span>{isProcessing ? '...' : 'Bagikan'}</span>
                         </button>
-                         <button onClick={handleDownloadNow} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-gray-500 rounded-md text-white">
+                         <button onClick={handleDownloadNow} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md">
                             <span>Unduh</span>
                          </button>
                     </div>
@@ -501,8 +514,8 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                     <div>
                         <label htmlFor="shareView" className="block text-xs mb-1">Tampilan Kalender</label>
                          <select id="shareView" value={currentShareValue} onChange={handleModeChange} className="w-full bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-xs text-white">
-                            <option value="dailyCalendar">Kalender Harian</option>
                             <option value="monthlyCalendar">Kalender Bulanan</option>
+                            <option value="dailyCalendar">Kalender Harian</option>
                             <option value="yearlyCalendar">Kalender Tahunan</option>
                             <option value="dailyPrayer">Jadwal Shalat Hari Ini</option>
                             <option value="monthlyPrayer">Jadwal Shalat Bulanan</option>
@@ -515,18 +528,18 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2">
-                     <button onClick={() => captureAndProcess('share')} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-cyan-500 rounded-md text-white">
+                     <button onClick={() => captureAndProcess('share')} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-cyan-500 text-white rounded-md">
                         <ShareIcon className="w-5 h-5"/>
                         <span>Pratinjau</span>
                      </button>
-                      <button onClick={() => captureAndProcess('print')} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-cyan-500 rounded-md text-white">
+                      <button onClick={() => captureAndProcess('print')} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-cyan-500 text-white rounded-md">
                         <PrintIcon className="w-5 h-5"/>
                         <span>Cetak</span>
                      </button>
                 </div>
 
                  <div className="border-t border-[var(--border-color)]/20 mt-4 pt-4">
-                    <button onClick={handleGenerateQrCode} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-cyan-500 rounded-md text-white" disabled={!!qrCodeUrl || isProcessing}>
+                    <button onClick={handleGenerateQrCode} className="w-full flex justify-center items-center space-x-2 p-2 bg-gray-600 hover:bg-cyan-500 text-white rounded-md" disabled={!!qrCodeUrl || isProcessing}>
                        <QRCodeIcon className="w-5 h-5"/>
                        <span>Buat Kode QR</span>
                     </button>

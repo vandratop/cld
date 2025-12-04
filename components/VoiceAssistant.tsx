@@ -1,28 +1,25 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { CloseIcon, VolumeUpIcon, VolumeOffIcon } from './Icons';
-
-interface VoiceAssistantProps {
-    isOpen: boolean;
-    onClose: () => void;
-}
+import { CloseIcon, VolumeUpIcon, VolumeOffIcon, SendIcon, AlarmIcon } from './Icons';
+import type { VoiceAssistantProps, AlarmSettings } from '../types';
 
 type VoiceOption = { name: string; id: string; accent: string };
 
 const VOICE_OPTIONS: VoiceOption[] = [
     { name: 'Pria - USA', id: 'Puck', accent: 'en-US' },
     { name: 'Wanita - USA', id: 'Kore', accent: 'en-US' },
-    { name: 'Pria - Arab', id: 'Fenrir', accent: 'ar-SA' },
+    { name: 'Pria - Arab', id: 'Fenrir', accent: 'ar-SA' }, 
     { name: 'Wanita - Indonesia', id: 'Zephyr', accent: 'id-ID' },
 ];
 
-interface AudioBlob {
+// Define a local interface for the data structure since Blob is not exported
+interface GeminiAudioData {
     data: string;
     mimeType: string;
 }
 
-function createBlob(data: Float32Array): AudioBlob {
+function createBlob(data: Float32Array): GeminiAudioData {
     const l = data.length;
     const int16 = new Int16Array(l);
     for (let i = 0; i < l; i++) {
@@ -63,13 +60,25 @@ function decode(base64: string) {
     return bytes;
 }
 
-export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose }) => {
+const AlarmToggle: React.FC<{ label: string, isOn: boolean, onToggle: () => void }> = ({ label, isOn, onToggle }) => (
+    <div className="flex justify-between items-center py-2 border-b border-gray-700/50 last:border-0">
+        <span className="text-xs text-gray-300">{label}</span>
+        <button 
+            onClick={onToggle}
+            className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold transition-all ${isOn ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-400'}`}
+        >
+            {isOn ? '🔔 ON' : '🔕 OFF'}
+        </button>
+    </div>
+);
+
+export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose, alarms, onToggleAlarm }) => {
     const [status, setStatus] = useState<'idle' | 'connecting' | 'listening' | 'speaking'>('idle');
     const [selectedVoice, setSelectedVoice] = useState<string>('Zephyr');
     const [volume, setVolume] = useState(1.0);
     const [transcription, setTranscription] = useState('');
     const [audioLevels, setAudioLevels] = useState<number[]>(new Array(5).fill(10));
-    const [chatLog, setChatLog] = useState<{role: 'user'|'model', text: string}[]>([]);
+    const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', text: string}[]>([]);
 
     const aiRef = useRef<GoogleGenAI | null>(null);
     const sessionRef = useRef<any>(null);
@@ -79,20 +88,26 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
     const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
     const streamRef = useRef<MediaStream | null>(null);
     const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
-    const synth = window.speechSynthesis;
+    const synthRef = useRef(window.speechSynthesis);
 
     useEffect(() => {
         if (isOpen) {
-            // Play greeting TTS immediately
-            if (synth) {
-                synth.cancel();
-                const utterance = new SpeechSynthesisUtterance("Assalamualaikum warahmatullahi wabarakatuh");
-                utterance.lang = 'id-ID';
-                synth.speak(utterance);
-            }
-            startSession();
+            // TTS Greeting
+            const greeting = "Assalamualaikum warahmatullahi wabarakatuh";
+            const utterance = new SpeechSynthesisUtterance(greeting);
+            utterance.lang = 'id-ID';
+            utterance.volume = 1.0;
+            synthRef.current.cancel();
+            synthRef.current.speak(utterance);
+            
+            // Start session after a slight delay to allow greeting to start
+            setTimeout(() => {
+                startSession();
+            }, 2000);
         } else {
             stopSession();
+            synthRef.current.cancel();
+            setChatHistory([]);
         }
         return () => stopSession();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,7 +167,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                         const audioStr = msg.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
                         if (audioStr) {
                             setStatus('speaking');
-                            updateAudioLevels(50 + Math.random() * 30);
+                            updateAudioLevels(50 + Math.random() * 30); // Fake output levels
                             
                             if (outputCtxRef.current && outputCtxRef.current.state !== 'closed') {
                                 if (outputCtxRef.current.state === 'suspended') {
@@ -179,12 +194,28 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                                 sourcesRef.current.add(sourceNode);
                             }
                         }
-
-                        // Handle text updates if available or turn complete events to update chat log
-                        // Note: The audio-only model might not send text back unless configured. 
-                        // We will simulate log updates based on status changes for visual feedback if actual text is missing.
-                        if (msg.serverContent?.turnComplete) {
-                             setChatLog(prev => [...prev, {role: 'model', text: '(Selesai berbicara)'}]);
+                        
+                         // Capture transcription for text history
+                        if (msg.serverContent?.outputTranscription?.text) {
+                            const text = msg.serverContent.outputTranscription.text;
+                             setChatHistory(prev => {
+                                const last = prev[prev.length - 1];
+                                if (last && last.role === 'model') {
+                                    return [...prev.slice(0, -1), { role: 'model', text: last.text + text }];
+                                }
+                                return [...prev, { role: 'model', text }];
+                            });
+                        }
+                         if (msg.serverContent?.inputTranscription?.text) {
+                             // Note: Input transcription comes in chunks too, simplification for demo
+                             const text = msg.serverContent.inputTranscription.text;
+                              setChatHistory(prev => {
+                                const last = prev[prev.length - 1];
+                                if (last && last.role === 'user') {
+                                     return [...prev.slice(0, -1), { role: 'user', text: last.text + text }];
+                                }
+                                return [...prev, { role: 'user', text }];
+                             });
                         }
 
                         if (msg.serverContent?.interrupted) {
@@ -208,6 +239,9 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                     speechConfig: {
                         voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } }
                     },
+                    // Enable transcription for history
+                    outputAudioTranscription: {}, 
+                    inputAudioTranscription: {},
                     systemInstruction: `You are AI-HIJR, a polite and knowledgeable Islamic assistant. 
                     Your voice should be calm, clear, and respectful.
                     
@@ -222,6 +256,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                     
                     Language: Respond in the language the user speaks (mostly Indonesian), but maintain Islamic terminology properly (full honorifics for Allah and Prophets).`
                 }
+            }).catch(e => {
+                console.error("Connect failed:", e);
+                setTranscription("Gagal terhubung ke layanan AI. Coba lagi nanti.");
+                setStatus('idle');
             });
             
             sessionPromise.then(sess => {
@@ -284,31 +322,42 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
             return newLevels;
         });
     };
-
-    const handleSaveTranscript = () => {
-        // Since we don't have full text from audio stream easily, we save a placeholder log
-        const textContent = chatLog.map(entry => `${entry.role.toUpperCase()}: ${entry.text}`).join('\n') || "Percakapan Audio (Transkrip tidak tersedia penuh).";
-        const blob = new Blob([textContent], { type: 'text/plain' });
+    
+    const handleSaveAndShare = () => {
+        const text = chatHistory.map(m => `${m.role === 'user' ? 'User' : 'AI-HIJR'}: ${m.text}`).join('\n\n');
+        const blob = new Blob([text], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `percakapan_ai_hijr_${new Date().toISOString()}.txt`;
+        a.download = `ai-hijr-conversation-${new Date().toISOString()}.txt`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        // Save to Local Storage as requested
+        try {
+            const savedConvos = JSON.parse(localStorage.getItem('savedVoiceConversations') || '[]');
+            savedConvos.push({
+                date: new Date().toISOString(),
+                content: text
+            });
+            localStorage.setItem('savedVoiceConversations', JSON.stringify(savedConvos));
+            alert('Percakapan disimpan di penyimpanan lokal dan diunduh.');
+        } catch (e) {
+            console.error("Storage limit reached", e);
+        }
     };
 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/90 flex flex-col justify-center items-center z-50 fade-in">
+        <div className="fixed inset-0 bg-black/90 flex flex-col justify-center items-center z-50 fade-in overflow-hidden">
             <div className="absolute top-4 right-4">
                 <button onClick={onClose} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700"><CloseIcon /></button>
             </div>
 
-            <div className="w-full max-w-md p-6 text-center flex flex-col h-full max-h-[90vh]">
-                <div className="flex-shrink-0 mb-4 relative">
+            <div className="w-full max-w-md p-6 text-center h-full flex flex-col justify-center">
+                <div className="mb-4 relative shrink-0">
                     <div className={`w-32 h-32 mx-auto rounded-full border-4 flex items-center justify-center transition-all duration-300 ${status === 'speaking' ? 'border-cyan-400 shadow-[0_0_30px_#22d3ee]' : (status === 'listening' ? 'border-green-400 shadow-[0_0_20px_#4ade80]' : 'border-gray-600')}`}>
                         <div className="flex items-center justify-center gap-1 h-16">
                             {audioLevels.map((h, i) => (
@@ -325,21 +374,18 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                     </p>
                 </div>
 
-                <p className="text-gray-300 mb-4 min-h-[1.5rem] text-sm px-4 italic flex-shrink-0">
-                    "{transcription}"
-                </p>
-
-                {/* Chat Log Area */}
-                <div className="flex-1 bg-black/40 border border-gray-700 rounded-lg p-2 mb-4 overflow-y-auto text-left text-xs text-gray-300 space-y-1">
-                    <p className="text-center text-gray-500 italic">Riwayat Percakapan (Log)</p>
-                    {chatLog.map((log, idx) => (
-                        <div key={idx} className={log.role === 'user' ? 'text-green-400' : 'text-cyan-400'}>
-                            <span className="font-bold">{log.role === 'user' ? 'Anda' : 'AI'}:</span> {log.text}
-                        </div>
-                    ))}
+                {/* Text Chat History */}
+                <div className="flex-grow overflow-y-auto mb-4 bg-gray-900/50 rounded-lg p-3 text-left space-y-3 border border-gray-700 max-h-[25vh]">
+                     {chatHistory.length === 0 && <p className="text-gray-500 text-center italic text-xs">Percakapan akan muncul di sini...</p>}
+                     {chatHistory.map((msg, idx) => (
+                         <div key={idx} className={`p-2 rounded text-sm ${msg.role === 'user' ? 'bg-cyan-900/40 ml-4' : 'bg-gray-800/60 mr-4'}`}>
+                             <p className="font-bold text-xs mb-1 text-gray-400">{msg.role === 'user' ? 'Anda' : 'AI-HIJR'}</p>
+                             <p className="text-gray-200">{msg.text}</p>
+                         </div>
+                     ))}
                 </div>
 
-                <div className="bg-gray-900/80 p-4 rounded-xl border border-gray-700 flex-shrink-0">
+                <div className="bg-gray-900/80 p-4 rounded-xl border border-gray-700 shrink-0">
                     <div className="flex justify-between items-center mb-4">
                         <span className="text-xs uppercase text-gray-400 font-bold">Pengaturan Suara</span>
                         <VolumeUpIcon className="w-4 h-4 text-gray-400"/>
@@ -374,27 +420,39 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose 
                             />
                         </div>
 
-                        <div className="text-center">
-                            <button 
-                                onClick={handleSaveTranscript}
-                                className="text-xs px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-white font-bold w-full"
-                            >
-                                Save & Share
-                            </button>
-                            <p className="text-[10px] text-gray-500 mt-1">klik tombol save, jika ingin merekam dan menyimpan hasil live percakapan</p>
+                        {/* New Alarm Settings Section */}
+                        <div className="border-t border-gray-700 pt-3 mt-3">
+                            <div className="flex items-center gap-2 mb-2">
+                                <AlarmIcon className="w-4 h-4 text-cyan-400" />
+                                <span className="text-xs font-bold text-cyan-400">PENGATURAN ALARM</span>
+                            </div>
+                            <div className="h-32 overflow-y-auto pr-1 custom-scrollbar space-y-1 bg-black/20 p-2 rounded-lg border border-gray-700/50">
+                                <AlarmToggle label="Tidur" isOn={alarms.tidur.isOn} onToggle={() => onToggleAlarm('tidur', !alarms.tidur.isOn)} />
+                                <AlarmToggle label="Tahajud" isOn={alarms.tahajud.isOn} onToggle={() => onToggleAlarm('tahajud', !alarms.tahajud.isOn)} />
+                                <AlarmToggle label="Sahur" isOn={alarms.sahur.isOn} onToggle={() => onToggleAlarm('sahur', !alarms.sahur.isOn)} />
+                                <AlarmToggle label="Dhuha" isOn={alarms.dhuha.isOn} onToggle={() => onToggleAlarm('dhuha', !alarms.dhuha.isOn)} />
+                                <AlarmToggle label="Shalat 5-Waktu" isOn={alarms.shalat5Waktu.isOn} onToggle={() => onToggleAlarm('shalat5Waktu', !alarms.shalat5Waktu.isOn)} />
+                                <AlarmToggle label="Shalat Jum'at" isOn={alarms.jumat.isOn} onToggle={() => onToggleAlarm('jumat', !alarms.jumat.isOn)} />
+                                <AlarmToggle label="Dzikir Pagi" isOn={alarms.dzikirPagi.isOn} onToggle={() => onToggleAlarm('dzikirPagi', !alarms.dzikirPagi.isOn)} />
+                                <AlarmToggle label="Dzikir Petang" isOn={alarms.dzikirPetang.isOn} onToggle={() => onToggleAlarm('dzikirPetang', !alarms.dzikirPetang.isOn)} />
+                                <AlarmToggle label="Doa Jum'at Petang" isOn={alarms.doaJumat.isOn} onToggle={() => onToggleAlarm('doaJumat', !alarms.doaJumat.isOn)} />
+                            </div>
                         </div>
-
-                        <div className="mt-2 p-2 bg-yellow-900/20 border border-yellow-700/50 rounded text-left">
-                             <p className="text-[10px] text-yellow-500">
-                                <strong>Disclaimer:</strong> Jawaban yang diberikan oleh AI Assistant bertujuan untuk memberikan informasi dan tidak boleh dianggap sebagai fatwa. Untuk masalah Fiqih, silakan berkonsultasi dengan ulama atau ahli agama yang terpercaya.
-                             </p>
-                        </div>
+                        
+                         <button 
+                            onClick={handleSaveAndShare}
+                            className="w-full py-2 bg-green-700 hover:bg-green-600 rounded text-xs font-bold text-white flex items-center justify-center gap-2 mt-2"
+                        >
+                            <SendIcon /> Save & Share
+                        </button>
+                        <p className="text-[10px] text-gray-500 italic">Klik tombol save, jika ingin merekam dan menyimpan hasil live percakapan.</p>
                     </div>
                 </div>
                 
-                <p className="text-[10px] text-gray-500 mt-2">
-                    Topik terbatas pada: Islam, Quran, Hadist, Sejarah Nabi, & Ibadah.
-                </p>
+                <div className="mt-4 text-[10px] text-gray-500">
+                    <p>Topik terbatas pada: Islam, Quran, Hadist, Sejarah Nabi, Ibadah, peristiwa sejarah di kalender hijriah.</p>
+                    <p className="mt-1 text-red-400/80">Jawaban yang diberikan oleh AI Assistant bertujuan untuk memberikan informasi dan tidak boleh dianggap sebagai fatwa. Untuk masalah Fiqih, silakan berkonsultasi dengan ulama atau ahli agama yang terpercaya.</p>
+                </div>
             </div>
         </div>
     );

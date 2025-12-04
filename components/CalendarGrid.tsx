@@ -1,4 +1,3 @@
-
 import React from 'react';
 import type { Day, CustomEvent, CustomHijriEvent, CalendarFormat } from '../types';
 import { WEEKDAY_MAP } from '../constants';
@@ -40,11 +39,11 @@ export const getDayHighlightAndInfo = (day: Day, nationalHolidays: { [date: stri
 
     // 1. Major Islamic Holidays (Red #FF3131)
     if ((hijriMonth === 1 && hijriDay === 1)) {
-        title = nationalHolidayName || "Tahun Baru Hijriah"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-tahun-baru'; indicator = 'islamic';
+        title = nationalHolidayName || "Tahun Baru Hijriah"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-tahun-baru'; indicator = null; // No icon, just color
     } else if ((hijriMonth === 10 && (hijriDay === 1 || hijriDay === 2))) {
-        title = nationalHolidayName || "Idul Fitri"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-fitri'; indicator = 'islamic';
+        title = nationalHolidayName || "Idul Fitri"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-fitri'; indicator = null; // No icon, just color
     } else if ((hijriMonth === 12 && hijriDay === 10)) {
-        title = nationalHolidayName || "Idul Adha"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-adha'; indicator = 'islamic';
+        title = nationalHolidayName || "Idul Adha"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-adha'; indicator = null; // No icon, just color
     }
     // 2. Ramadan (Teal #009688)
     else if (hijriMonth === 9) { 
@@ -56,8 +55,6 @@ export const getDayHighlightAndInfo = (day: Day, nationalHolidays: { [date: stri
         // Exception for 13 Dzulhijjah (Tasyrik)
         if (hijriMonth === 12 && hijriDay === 13) {
              // Tasyrik logic handled in App.tsx / DateDetailModal usually, but we ensure no blue highlight here
-             // It falls through to "Puasa Sunnah Lainnya" logic if we considered it, but Tasyrik is "Forbidden to fast"
-             // So we leave it transparent or specific Tasyrik color if needed. Request says "hapus highlight".
              style.backgroundColor = 'transparent';
              if (nationalHolidayName) style.backgroundColor = '#FF3131'; // Revert to red if holiday
         } else {
@@ -183,9 +180,9 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ days, view, todayHij
                 const showHijri = calendarFormat === 'hijri-masehi' || calendarFormat === 'hijri';
                 const showGregorian = calendarFormat === 'hijri-masehi' || calendarFormat === 'masehi';
                 
-                // Updated size logic: Increase gregorian size when in 'hijri-masehi' format (default)
-                const gregorianSizeClass = (calendarFormat === 'masehi') ? 'text-3xl' : (calendarFormat === 'hijri-masehi' ? 'text-2xl sm:text-3xl' : 'text-base');
-                const hijriSizeClass = (calendarFormat === 'hijri') ? 'text-2xl sm:text-3xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2' : 'text-xs top-1 right-1';
+                // Increased font size for Gregorian dates (Masehi)
+                const gregorianSizeClass = (calendarFormat === 'masehi') ? 'text-4xl sm:text-5xl' : 'text-xl sm:text-2xl';
+                const hijriSizeClass = (calendarFormat === 'hijri') ? 'text-2xl sm:text-3xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2' : 'text-[10px] sm:text-xs top-1 right-1';
 
                 return (
                     <div
@@ -196,6 +193,7 @@ export const CalendarGrid: React.FC<CalendarGridProps> = ({ days, view, todayHij
                         title={!isPrintable ? (nationalHoliday || hijriHoliday || title) : undefined}
                     >
                         {indicator === 'islamic' && <PinIcon className="absolute top-1 left-1 w-3 h-3 text-white" />}
+                        {indicator === 'national' && <PinIcon className="absolute top-1 left-1 w-3 h-3 text-white" />}
                         
                         {hijriHoliday && !indicator && <span className="absolute top-0.5 left-1 text-sm" title={hijriHoliday}>☪️</span>}
                         

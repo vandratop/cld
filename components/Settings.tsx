@@ -151,8 +151,13 @@ export const Settings: React.FC<SettingsProps> = ({
         </div>
     );
     
+    // Explicit background to avoid transparency issues
+    const isLightTheme = document.body.className.includes('light');
+    const bgColor = isLightTheme ? 'bg-white' : 'bg-[#002b25]';
+    const textColor = isLightTheme ? 'text-gray-900' : 'text-white';
+
     return (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 w-full max-w-xs main-container cyber-border rounded-lg p-4 z-40 bounce-in overflow-y-auto max-h-[calc(100vh-8rem)]" onMouseDown={e => e.stopPropagation()}>
+        <div className={`absolute top-14 left-1/2 -translate-x-1/2 w-full max-w-xs main-container cyber-border rounded-lg p-4 z-40 bounce-in overflow-y-auto max-h-[calc(100vh-8rem)] ${bgColor} ${textColor}`} onMouseDown={e => e.stopPropagation()}>
             <button onClick={onClose} className="absolute top-2 right-2 p-1"><CloseIcon /></button>
             <h3 className="font-bold text-lg mb-4">Pengaturan</h3>
             
@@ -173,7 +178,7 @@ export const Settings: React.FC<SettingsProps> = ({
                     <p className="text-xs text-gray-400 mt-1">Sembunyikan elemen non-kalender untuk fokus pada tanggal.</p>
                     <button 
                         onClick={() => { onReadingModeChange(true); onClose(); }}
-                        className="w-full text-sm mt-2 p-2 bg-cyan-800 rounded-md neon-button"
+                        className="w-full text-sm mt-2 p-2 bg-cyan-800 rounded-md neon-button text-white"
                     >
                         Aktifkan Mode Baca
                     </button>
@@ -209,6 +214,9 @@ export const Settings: React.FC<SettingsProps> = ({
                         <AlarmControl label="Sahur" name="sahur" />
                         <AlarmControl label="Dhuha" name="dhuha" />
                         <AlarmControl label="Jum'at" name="jumat" />
+                        <AlarmControl label="Dzikir Pagi" name="dzikirPagi" />
+                        <AlarmControl label="Dzikir Petang" name="dzikirPetang" />
+                        <AlarmControl label="Doa Jum'at" name="doaJumat" />
                         <div className="flex justify-between items-center text-sm">
                             <span>Shalat 5-waktu</span>
                             <button 

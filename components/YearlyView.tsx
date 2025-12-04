@@ -3,7 +3,6 @@ import React from 'react';
 import type { CalendarData, CustomEvent, CustomHijriEvent, Day } from '../types';
 import { translateToIndonesian } from '../utils';
 import { SPECIAL_DAYS_COLORS } from '../constants';
-import { PinIcon } from './Icons';
 
 interface YearlyViewProps {
     yearData: (CalendarData | null)[];
@@ -68,7 +67,7 @@ const MiniMonth: React.FC<{ monthData: CalendarData, todayHijriDate: string, cus
     return (
         <div className={`p-1.5 border border-[var(--border-color)]/20 rounded-lg ${!isPrintable ? 'cursor-pointer hover:bg-[var(--border-color)]/10' : ''}`} onClick={() => !isPrintable && onMonthClick(monthDate)}>
             <h4 className="font-bold text-xs text-center mb-1 text-[var(--text-color-secondary)]">{translateToIndonesian(monthData.gregorianMonthName, 'gregorian')}</h4>
-            <div className="grid grid-cols-7 gap-px text-center text-[10px]">
+            <div className="grid grid-cols-7 gap-px text-center text-[8px]">
                 {weekDays.map((day, i) => <div key={`${day}-${i}`} className="font-bold">{day}</div>)}
                 {Array.from({ length: firstDayOfMonthOffset }).map((_, i) => <div key={`empty-${i}`}></div>)}
                 {monthData.days.map(day => {
@@ -81,7 +80,7 @@ const MiniMonth: React.FC<{ monthData: CalendarData, todayHijriDate: string, cus
                             color: bg && bg !== '#FFD700' ? '#fff' : 'inherit',
                             border: border || (isToday ? '1px solid var(--today-text-color)' : 'none'),
                         }}>
-                           <span style={{color: isToday && !bg ? 'var(--today-text-color)' : 'inherit', fontWeight: 'bold'}}> {parseInt(day.gregorian.day, 10)}</span>
+                           <span style={{color: isToday && !bg ? 'var(--today-text-color)' : 'inherit'}}> {parseInt(day.gregorian.day, 10)}</span>
                         </div>
                     );
                 })}
@@ -103,22 +102,6 @@ const MiniMonthSkeleton: React.FC = () => (
     </div>
 );
 
-const Legend: React.FC = () => (
-    <div className="text-xs space-y-2 mt-4 font-jannah px-2 p-3 bg-black/20 rounded-lg border border-[var(--border-color)]/20">
-        <h3 className="font-bold text-sm text-[var(--text-color-secondary)]">Keterangan:</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="flex items-center"><div className="w-3 h-3 bg-[#FF3131] mr-2"></div><span>Hari Raya (Tahun Baru, Idul Fitri, Idul Adha) dan Hari Libur Nasional</span></div>
-            <div className="flex items-center"><div className="w-3 h-3 bg-[#009688] mr-2"></div><span>Puasa Ramadhan</span></div>
-            <div className="flex items-center"><div className="w-3 h-3 bg-[#0D00FF] mr-2"></div><span>Puasa Sunnah Ayyamul Bidh (13, 14, 15 Hijriah)</span></div>
-            <div className="flex items-center"><div className="w-3 h-3 bg-[#21DEC4] mr-2"></div><span>Puasa Sunnah Senin - Kamis</span></div>
-            <div className="flex items-center"><div className="w-3 h-3 bg-[#1FCB0A] mr-2"></div><span>Puasa Sunnah Lainnya (Syawal, Arafah, dll.)</span></div>
-        </div>
-        <p className="text-[10px] italic mt-2 text-[var(--text-color-muted)]">
-            Untuk Penentuan jadwal Puasa Ramadhan, Hari Raya Idul Fitri dan Idul Adha berdasarkan sidang isbath dari Pemerintah, kemungkinan akan ada perbedaan penentuan tanggal antara di kalender Masehi dan Kalender Hijriah.
-        </p>
-    </div>
-);
-
 export const YearlyView: React.FC<YearlyViewProps> = ({ yearData, todayHijriDate, customEvents, customHijriEvents, nationalHolidays, onMonthClick, isLoading, isPrintable = false }) => {
     if (isLoading) {
         return (
@@ -129,28 +112,25 @@ export const YearlyView: React.FC<YearlyViewProps> = ({ yearData, todayHijriDate
     }
     
     return (
-        <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {yearData.map((monthData, index) => (
-                    monthData ? (
-                        <MiniMonth 
-                            key={index} 
-                            monthData={monthData} 
-                            todayHijriDate={todayHijriDate}
-                            customEvents={customEvents}
-                            customHijriEvents={customHijriEvents}
-                            nationalHolidays={nationalHolidays}
-                            onMonthClick={onMonthClick}
-                            isPrintable={isPrintable}
-                        />
-                    ) : (
-                        <div key={index} className="p-2 border border-dashed border-red-500/50 rounded-lg text-center text-xs flex items-center justify-center aspect-square">
-                            Gagal memuat data bulan ini.
-                        </div>
-                    )
-                ))}
-            </div>
-            {!isPrintable && <Legend />}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {yearData.map((monthData, index) => (
+                monthData ? (
+                    <MiniMonth 
+                        key={index} 
+                        monthData={monthData} 
+                        todayHijriDate={todayHijriDate}
+                        customEvents={customEvents}
+                        customHijriEvents={customHijriEvents}
+                        nationalHolidays={nationalHolidays}
+                        onMonthClick={onMonthClick}
+                        isPrintable={isPrintable}
+                    />
+                ) : (
+                    <div key={index} className="p-2 border border-dashed border-red-500/50 rounded-lg text-center text-xs flex items-center justify-center aspect-square">
+                        Gagal memuat data bulan ini.
+                    </div>
+                )
+            ))}
         </div>
     );
 };

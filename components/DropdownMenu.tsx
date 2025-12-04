@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ShareIcon, InfoIcon, ContactIcon, WhatsAppIcon, InstagramIcon, FacebookIcon, YouTubeIcon, TelegramIcon, TikTokIcon, WebsiteIcon } from './Icons';
 
@@ -16,8 +15,13 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ isOpen, onClose, onA
         onClose();
     };
 
+    // Explicit background to avoid transparency issues
+    const isLightTheme = document.body.className.includes('light');
+    const bgColor = isLightTheme ? 'bg-white' : 'bg-[#002b25]';
+    const textColor = isLightTheme ? 'text-gray-900' : 'text-white';
+
     return (
-        <div className="absolute top-12 right-2 w-56 main-container cyber-border rounded-lg p-2 z-40 fade-in"
+        <div className={`absolute top-12 right-2 w-56 main-container cyber-border rounded-lg p-2 z-40 fade-in ${bgColor} ${textColor}`}
              onMouseLeave={onClose}
         >
             <ul className="space-y-1">

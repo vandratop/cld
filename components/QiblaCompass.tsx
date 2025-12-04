@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import type { Location } from '../types';
 import { CloseIcon, MapIcon } from './Icons';
@@ -96,13 +95,17 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
         }
     };
 
+    // Explicit background to avoid transparency issues
+    const isLightTheme = document.body.className.includes('light');
+    const bgColor = isLightTheme ? 'bg-white' : 'bg-[#002b25]';
+    const textColor = isLightTheme ? 'text-gray-900' : 'text-white';
 
     const renderContent = () => {
         if (!permissionGranted) {
             return (
                  <div className="text-center">
                     <p className="mb-4">Untuk menggunakan kompas, kami memerlukan izin untuk mengakses sensor orientasi perangkat Anda.</p>
-                    <button onClick={handleRequestPermission} className="w-full p-2 bg-cyan-600 rounded neon-button">
+                    <button onClick={handleRequestPermission} className="w-full p-2 bg-cyan-600 rounded neon-button text-white">
                         Berikan Izin
                     </button>
                  </div>
@@ -125,7 +128,7 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
                 <div className="mt-4 text-center">
                     <p className="font-bold text-lg neon-text">Arah Kiblat</p>
                     <p className="font-clock text-2xl">{qiblaDirection.toFixed(2)}°</p>
-                    <button onClick={openMap} className="mt-3 inline-flex items-center gap-2 text-sm px-4 py-2 bg-gray-600 rounded-md neon-button">
+                    <button onClick={openMap} className="mt-3 inline-flex items-center gap-2 text-sm px-4 py-2 bg-gray-600 rounded-md neon-button text-white">
                         <MapIcon className="w-4 h-4"/>
                         Tampilkan di Peta
                     </button>
@@ -137,7 +140,7 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
 
     return (
         <div className="fixed inset-0 bg-black/80 flex justify-center pt-28 sm:pt-36 z-50 fade-in overflow-y-auto" onClick={onClose}>
-            <div className="main-container cyber-border rounded-lg p-6 w-full max-w-sm relative mb-8" onClick={(e) => e.stopPropagation()}>
+            <div className={`main-container cyber-border rounded-lg p-6 w-full max-w-sm relative mb-8 ${bgColor} ${textColor}`} onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-2 right-2 p-1"><CloseIcon /></button>
                 <h3 className="font-bold text-lg mb-4 neon-text text-center">Kompas Kiblat</h3>
                 {error && <p className="text-red-400 text-sm text-center mb-2">{error}</p>}
