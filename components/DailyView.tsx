@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Day, CalendarFormat, CustomEvent, CustomHijriEvent } from '../types';
 import { translateToIndonesian } from '../utils';
@@ -31,6 +32,7 @@ export const DailyView: React.FC<DailyViewProps> = ({
         (e.isRecurring || e.hijriYear === parseInt(day.hijri.year, 10))
     );
     const hijriHoliday = hijriHolidays.get(day.hijri.date);
+    const nationalHolidayName = nationalHolidays[gregorianDateString];
 
     // Helper to render a specific date section
     const DateSection = ({ 
@@ -153,9 +155,14 @@ export const DailyView: React.FC<DailyViewProps> = ({
                     <p className="text-[10px] italic text-[var(--text-color-muted)]">
                         "Untuk Penentuan jadwal Puasa Ramadhan, Hari Raya Idul Fitri dan Idul Adha berdasarkan sidang isbath dari Pemerintah..."
                     </p>
-                    <p className="text-[10px] font-bold text-[#FF3131] flex items-center mt-1">
-                        <PinIcon className="w-3 h-3 mr-1"/> Nama-nama Hari Libur Nasional
-                    </p>
+                    {nationalHolidayName && (
+                        <div className="mt-2 p-2 border border-red-400/30 rounded bg-red-900/10">
+                            <p className="font-bold text-[10px] text-red-400 mb-1 flex items-center">
+                                <PinIcon className="w-3 h-3 mr-1"/> Nama Hari Libur Nasional:
+                            </p>
+                            <p className="text-[10px] text-white pl-4">{nationalHolidayName}</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

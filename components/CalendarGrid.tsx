@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { Day, CustomEvent, CustomHijriEvent, CalendarFormat } from '../types';
 import { WEEKDAY_MAP } from '../constants';
@@ -34,16 +35,16 @@ export const getDayHighlightAndInfo = (day: Day, nationalHolidays: { [date: stri
     if (nationalHolidayName) {
         title = nationalHolidayName;
         style.backgroundColor = '#FF3131'; 
-        indicator = 'national';
+        indicator = null; // Removed icon as per request
     }
 
     // 1. Major Islamic Holidays (Red #FF3131)
     if ((hijriMonth === 1 && hijriDay === 1)) {
-        title = nationalHolidayName || "Tahun Baru Hijriah"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-tahun-baru'; indicator = null; // No icon, just color
+        title = nationalHolidayName || "Tahun Baru Hijriah"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-tahun-baru'; indicator = null; 
     } else if ((hijriMonth === 10 && (hijriDay === 1 || hijriDay === 2))) {
-        title = nationalHolidayName || "Idul Fitri"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-fitri'; indicator = null; // No icon, just color
+        title = nationalHolidayName || "Idul Fitri"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-fitri'; indicator = null; 
     } else if ((hijriMonth === 12 && hijriDay === 10)) {
-        title = nationalHolidayName || "Idul Adha"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-adha'; indicator = null; // No icon, just color
+        title = nationalHolidayName || "Idul Adha"; style.backgroundColor = '#FF3131'; infoKey = 'hari-raya-idul-adha'; indicator = null; 
     }
     // 2. Ramadan (Teal #009688)
     else if (hijriMonth === 9) { 

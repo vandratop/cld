@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { UserSettings, Theme, FilterSettings, SunnahFastingNotifications, SunnahFastingSetting, AlarmSettings, AlarmSound } from '../types';
 import { PRAYER_METHODS } from '../constants';
@@ -106,11 +107,6 @@ export const Settings: React.FC<SettingsProps> = ({
     alarms, onToggleAlarm, onAlarmTimeChange, alarmSound, onAlarmSoundChange, playAlarmSound
 }) => {
     
-    const changeLanguage = (langCode: string) => {
-        document.cookie = `googtrans=/id/${langCode}; path=/`;
-        window.location.reload();
-    };
-
     if (!isOpen) return null;
 
     const handleSunnahNotificationChange = (key: keyof SunnahFastingNotifications, type: 'isOn' | 'time', value: boolean | string) => {
@@ -295,18 +291,6 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
                 
                 <DateJumper onDateJump={onDateJump} />
-
-                {/* Language Section */}
-                <div className="border-t border-[var(--border-color)]/20 pt-4">
-                    <h4 className="font-bold w-full text-left flex items-center space-x-2 mb-2">
-                       <LanguageIcon className="w-5 h-5"/> <span>Pilihan Bahasa</span>
-                    </h4>
-                    <div className="flex justify-around items-center">
-                        <button onClick={() => changeLanguage('id')} className="p-2 rounded text-sm bg-gray-600 hover:bg-cyan-500 settings-button">Indonesia</button>
-                        <button onClick={() => changeLanguage('en')} className="p-2 rounded text-sm bg-gray-600 hover:bg-cyan-500 settings-button">English</button>
-                        <button onClick={() => changeLanguage('ar')} className="p-2 rounded text-sm bg-gray-600 hover:bg-cyan-500 settings-button">Arabic</button>
-                    </div>
-                </div>
             </div>
         </div>
     );

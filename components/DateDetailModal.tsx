@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Day, CustomEvent, CustomHijriEvent } from '../types';
 import { CloseIcon, InfoIcon, ShareIcon, PinIcon } from './Icons';
@@ -58,6 +59,23 @@ export const DateDetailModal: React.FC<DateDetailModalProps> = ({
     const displayFastingType = is13Dzulhijjah ? "Hari Tasyrik disunnahkan tidak berpuasa" : fastingInfo.type;
     const displayInfoKey = is13Dzulhijjah ? 'hari-raya-idul-adha' : infoTypeKey;
     const displayIsFasting = is13Dzulhijjah ? true : fastingInfo.isFasting; 
+
+    // Specific Holiday Logic for Tooltip Links
+    const hijriDay = parseInt(day.hijri.day);
+    const hijriMonth = day.hijri.month.number;
+    let specificHolidayInfo = null;
+    let specificHolidayKey = null;
+
+    if (hijriMonth === 1 && hijriDay === 1) {
+        specificHolidayInfo = "Tahun Baru Hijriah";
+        specificHolidayKey = "hari-raya-tahun-baru";
+    } else if (hijriMonth === 10 && (hijriDay === 1 || hijriDay === 2)) {
+        specificHolidayInfo = "Idul Fitri";
+        specificHolidayKey = "hari-raya-idul-fitri";
+    } else if (hijriMonth === 12 && hijriDay === 10) {
+        specificHolidayInfo = "Idul Adha";
+        specificHolidayKey = "hari-raya-idul-adha";
+    }
 
     const gregorianDate = `${day.gregorian.year}-${String(day.gregorian.month.number).padStart(2,'0')}-${day.gregorian.day.padStart(2,'0')}`;
     
@@ -129,9 +147,10 @@ export const DateDetailModal: React.FC<DateDetailModalProps> = ({
         handleCancelHijriEdit();
     };
 
-    const handleInfoClick = () => {
-        if (displayInfoKey) {
-            onOpenInfo(displayInfoKey);
+    const handleInfoClick = (key?: string) => {
+        const targetKey = key || displayInfoKey;
+        if (targetKey) {
+            onOpenInfo(targetKey);
         }
     }
 
@@ -235,7 +254,22 @@ export const DateDetailModal: React.FC<DateDetailModalProps> = ({
                  </p>
                 
                  <div className="overflow-y-auto pr-2 flex-grow">
-                    { (displayIsFasting || nationalHoliday || hijriHoliday) && (
+                    {/* Specific Holiday Info Block (Muharram, Syawal, Dzulhijjah) */}
+                    {specificHolidayInfo && specificHolidayKey && (
+                        <div className={`mb-4 space-y-2 p-3 rounded-lg border ${infoBgClass} bg-red-900/10 border-red-500/30`}>
+                            <div className="text-[#FF3131] font-bold flex items-center justify-center text-sm text-center">
+                                {specificHolidayInfo}
+                            </div>
+                            <button 
+                                onClick={() => handleInfoClick(specificHolidayKey)} 
+                                className={`text-xs hover:underline flex items-center justify-center mx-auto mt-2 px-3 py-1 rounded-full ${isLightTheme ? 'bg-gray-200 text-gray-800' : 'bg-black/20 text-cyan-400'}`}
+                            >
+                                <InfoIcon className="w-4 h-4 mr-1"/> Informasi Selengkapnya
+                            </button>
+                        </div>
+                    )}
+
+                    { (displayIsFasting || nationalHoliday || hijriHoliday) && !specificHolidayInfo && (
                         <div className={`mb-4 space-y-2 p-3 rounded-lg border ${infoBgClass}`}>
                             {nationalHoliday && <div className="text-[#FF3131] font-bold flex items-center justify-center text-sm text-center"><PinIcon className="w-4 h-4 mr-1 flex-shrink-0"/> {nationalHoliday}</div>}
                             {hijriHoliday && <div className="text-green-600 dark:text-green-400 font-bold flex items-center justify-center text-sm text-center"><span className="mr-2 text-base">☪️</span> {hijriHoliday}</div>}
@@ -245,7 +279,7 @@ export const DateDetailModal: React.FC<DateDetailModalProps> = ({
                                     {FASTING_INFO_DETAILS[displayFastingType] && <p className={`text-xs font-normal mt-1 ${subTextColorClass}`}>{FASTING_INFO_DETAILS[displayFastingType]}</p>}
                                 </div>
                             )}
-                             {displayInfoKey && <button onClick={handleInfoClick} className={`text-xs hover:underline flex items-center justify-center mx-auto mt-2 px-3 py-1 rounded-full ${isLightTheme ? 'bg-gray-200 text-gray-800' : 'bg-black/20 text-cyan-400'}`}>
+                             {displayInfoKey && <button onClick={() => handleInfoClick()} className={`text-xs hover:underline flex items-center justify-center mx-auto mt-2 px-3 py-1 rounded-full ${isLightTheme ? 'bg-gray-200 text-gray-800' : 'bg-black/20 text-cyan-400'}`}>
                                 <InfoIcon className="w-4 h-4 mr-1"/> Selengkapnya
                             </button>}
                         </div>
