@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
@@ -22,7 +23,7 @@ import { ContactUsModal } from './components/ContactUsModal';
 import { QiblaCompass } from './components/QiblaCompass';
 import { VoiceAssistant } from './components/VoiceAssistant';
 import { PUASA_SUB_PAGES, HARI_RAYA_SUB_PAGES, INFO_DETAILS, FAQ_CONTENT } from './infoContent';
-import { WEEKDAY_MAP, COUNTRIES, PRAYER_METHODS } from './constants';
+import { WEEKDAY_MAP, COUNTRIES, PRAYER_METHODS, LANGUAGES } from './constants';
 import { CountdownEvent } from './types';
 
 
@@ -645,42 +646,99 @@ const App: React.FC = () => {
     const [selectedDay, setSelectedDay] = useState<Day | null>(null);
     const [selectedDayFastingInfo, setSelectedDayFastingInfo] = useState<{isFasting: boolean, type: string}>({isFasting: false, type: ""});
     const [selectedDayInfoKey, setSelectedDayInfoKey] = useState<string | null>(null);
-    const [alarms, setAlarms] = useState<AlarmSettings>({
-        tidur: { isOn: false, time: '22:05' },
-        tahajud: { isOn: false, time: '02:34' },
-        sahur: { isOn: false, time: '03:33' },
-        dhuha: { isOn: false, time: '09:45' },
-        jumat: { isOn: false, time: '11:15' },
-        shalat5Waktu: { isOn: false, time: '' }, 
-        dzikirPagi: { isOn: false, time: '05:00' },
-        dzikirPetang: { isOn: false, time: '17:00' },
-        doaJumat: { isOn: false, time: '17:30' }
-    });
-    const [activeAlarm, setActiveAlarm] = useState<{ name: keyof AlarmSettings; text: string } | null>(null);
-    const [calendarAnimationClass, setCalendarAnimationClass] = useState('fade-in');
-    const [userSettings, setUserSettings] = useState<UserSettings>({
-        manualLocation: { city: '', country: '' },
-        prayerMethod: 20,
-        holidayCountry: 'ID',
-        sunnahFastingNotifications: {
-            seninKamis: { isOn: false, time: '17:00' },
-            ayyamulBidh: { isOn: false, time: '17:00' },
-            arafah: { isOn: false, time: '17:00' },
-            asyura: { isOn: false, time: '17:00' },
-            syawal: { isOn: false, time: '17:00' },
+    
+    // Persistence for Alarms
+    const [alarms, setAlarms] = useState<AlarmSettings>(() => {
+        try {
+            const saved = localStorage.getItem('hijriCalendarAlarms');
+            return saved ? JSON.parse(saved) : {
+                tidur: { isOn: false, time: '22:05' },
+                tahajud: { isOn: false, time: '02:34' },
+                sahur: { isOn: false, time: '03:33' },
+                dhuha: { isOn: false, time: '09:45' },
+                jumat: { isOn: false, time: '11:15' },
+                shalat5Waktu: { isOn: false, time: '' }, 
+                dzikirPagi: { isOn: false, time: '05:00' },
+                dzikirPetang: { isOn: false, time: '17:00' },
+                doaJumat: { isOn: false, time: '17:30' }
+            };
+        } catch { 
+            return {
+                tidur: { isOn: false, time: '22:05' },
+                tahajud: { isOn: false, time: '02:34' },
+                sahur: { isOn: false, time: '03:33' },
+                dhuha: { isOn: false, time: '09:45' },
+                jumat: { isOn: false, time: '11:15' },
+                shalat5Waktu: { isOn: false, time: '' }, 
+                dzikirPagi: { isOn: false, time: '05:00' },
+                dzikirPetang: { isOn: false, time: '17:00' },
+                doaJumat: { isOn: false, time: '17:30' }
+            };
         }
     });
+
+    const [activeAlarm, setActiveAlarm] = useState<{ name: keyof AlarmSettings; text: string } | null>(null);
+    const [calendarAnimationClass, setCalendarAnimationClass] = useState('fade-in');
+    
+    // Persistence for User Settings
+    const [userSettings, setUserSettings] = useState<UserSettings>(() => {
+        try {
+            const saved = localStorage.getItem('hijriCalendarUserSettings');
+            return saved ? JSON.parse(saved) : {
+                manualLocation: { city: '', country: '' },
+                prayerMethod: 20,
+                holidayCountry: 'ID',
+                sunnahFastingNotifications: {
+                    seninKamis: { isOn: false, time: '17:00' },
+                    ayyamulBidh: { isOn: false, time: '17:00' },
+                    arafah: { isOn: false, time: '17:00' },
+                    asyura: { isOn: false, time: '17:00' },
+                    syawal: { isOn: false, time: '17:00' },
+                }
+            };
+        } catch {
+            return {
+                manualLocation: { city: '', country: '' },
+                prayerMethod: 20,
+                holidayCountry: 'ID',
+                sunnahFastingNotifications: {
+                    seninKamis: { isOn: false, time: '17:00' },
+                    ayyamulBidh: { isOn: false, time: '17:00' },
+                    arafah: { isOn: false, time: '17:00' },
+                    asyura: { isOn: false, time: '17:00' },
+                    syawal: { isOn: false, time: '17:00' },
+                }
+            };
+        }
+    });
+
     const [calendarView, setCalendarView] = useState<CalendarView>('monthly');
     const [calendarFormat, setCalendarFormat] = useState<CalendarFormat>('hijri-masehi');
     const [currentWeekDays, setCurrentWeekDays] = useState<Day[]>([]);
     const [nationalHolidays, setNationalHolidays] = useState<{ [date: string]: string }>({});
     const [hijriHolidays, setHijriHolidays] = useState<Map<string, string>>(new Map());
-    const [alarmSound, setAlarmSound] = useState<AlarmSound>('default');
-    const [filters, setFilters] = useState<FilterSettings>({
-        showCustomEvents: true,
-        showNationalHolidays: true,
-        showCustomHijriEvents: true,
+    
+    const [alarmSound, setAlarmSound] = useState<AlarmSound>(() => {
+        try { return localStorage.getItem('hijriCalendarAlarmSound') as AlarmSound || 'default'; } catch { return 'default'; }
     });
+
+    const [filters, setFilters] = useState<FilterSettings>(() => {
+        try {
+            const saved = localStorage.getItem('hijriCalendarFilters');
+            return saved ? JSON.parse(saved) : {
+                showCustomEvents: true,
+                showNationalHolidays: true,
+                showCustomHijriEvents: true,
+            };
+        } catch {
+            return {
+                showCustomEvents: true,
+                showNationalHolidays: true,
+                showCustomHijriEvents: true,
+            };
+        }
+    });
+
     const [dailyFact, setDailyFact] = useState<string | null>(null);
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -689,8 +747,18 @@ const App: React.FC = () => {
     const [isVoiceAssistantOpen, setIsVoiceAssistantOpen] = useState(false);
     const [chatBotInitialMessage, setChatBotInitialMessage] = useState<string | null>(null);
     const [isReadingMode, setIsReadingMode] = useState(false);
-    const [adhanAlarms, setAdhanAlarms] = useState<AdhanAlarms>({});
-    const [selectedAdhan, setSelectedAdhan] = useState('adhan1');
+    
+    const [adhanAlarms, setAdhanAlarms] = useState<AdhanAlarms>(() => {
+        try {
+            const saved = localStorage.getItem('hijriAdhanAlarms');
+            return saved ? JSON.parse(saved) : {};
+        } catch { return {}; }
+    });
+
+    const [selectedAdhan, setSelectedAdhan] = useState(() => {
+        try { return localStorage.getItem('hijriAdhanSound') || 'adhan1'; } catch { return 'adhan1'; }
+    });
+
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [lastPlayedAlarm, setLastPlayedAlarm] = useState<string | null>(null);
     const [currentLang, setCurrentLang] = useState<'id' | 'en' | 'ar'>('id');
@@ -780,12 +848,12 @@ const App: React.FC = () => {
 
         if (soundToPlay === 'default') {
             playClickSound();
+            // Just play TTS immediately for default
             if (ttsText) speak(ttsText);
             return;
         }
 
         if (soundToToggle) {
-            // Stop logic if already playing? No, alarm always plays from start
             soundToToggle.pause();
             soundToToggle.currentTime = 0;
             
@@ -1458,6 +1526,11 @@ const App: React.FC = () => {
         </div>
     );
 
+    const changeLanguage = (langCode: string) => {
+        document.cookie = `googtrans=/id/${langCode}; path=/`;
+        window.location.reload();
+    };
+
     const filteredCustomEvents = filters.showCustomEvents ? customEvents : [];
     const filteredNationalHolidays = filters.showNationalHolidays ? nationalHolidays : {};
     const filteredCustomHijriEvents = filters.showCustomHijriEvents ? customHijriEvents : [];
@@ -1818,6 +1891,17 @@ const App: React.FC = () => {
                             <header className="flex justify-between items-center mb-4 relative">
                                 <div className="flex items-center space-x-1">
                                     <button onClick={() => { playClickSound(); setIsSettingsOpen(prev => !prev); }} className="p-2"><SettingsIcon /></button>
+                                    <div className="relative">
+                                        <select 
+                                            onChange={(e) => changeLanguage(e.target.value)}
+                                            className="bg-transparent text-xs p-2 text-[var(--text-color)] appearance-none border-none outline-none cursor-pointer hover:text-[var(--text-color-secondary)] font-bold text-center w-10 sm:w-auto"
+                                            value={getLanguageFromCookie()}
+                                        >
+                                            {LANGUAGES.map(lang => (
+                                                <option key={lang.code} value={lang.code} className="text-black">{lang.code.toUpperCase()}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                     <button onClick={() => { playClickSound(); setIsQiblaModalOpen(prev => !prev); }} className="p-2 text-2xl">
                                         <span>🕋</span>
                                     </button>
