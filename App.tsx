@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import type { Location, CalendarData, Day, CountdownTarget, NextPrayer, PrayerTimes, PrayerName, CustomEvent, HijriDate, UserSettings, Theme, AlarmSettings, FilterSettings, CustomHijriEvent, SunnahFastingNotifications, AdhanAlarms, CalendarFormat, AlarmSound } from './types';
+import type { Location, CalendarData, Day, CountdownTarget, NextPrayer, PrayerTimes, PrayerName, CustomEvent, HijriDate, UserSettings, Theme, AlarmSettings, FilterSettings, CustomHijriEvent, SunnahFastingNotifications, AdhanAlarms, CalendarFormat, AlarmSound, AppView, UserProfile } from './types';
 import { fetchCalendarData, getNextCountdownTarget, fetchLocationAndPrayerTimes, convertGToH, fetchHijriHolidays, convertHijriToGregorian, getSpecificCountdownTarget } from './services/calendarService';
 import { getNationalHolidays } from './services/holidayService';
 import { getDailyFact } from './services/geminiService';
@@ -16,7 +16,7 @@ import { Settings } from './components/Settings';
 import { ShareModal } from './components/ShareModal';
 import { HeaderInfo } from './components/HeaderInfo';
 import { DateDetailModal } from './components/DateDetailModal';
-import { SettingsIcon, ChevronLeftIcon, ChevronRightIcon, AlarmIcon, CloseIcon, MenuIcon, QiblaIcon, RamadanModeIcon, PinIcon, SearchIcon, PaletteIcon, SparklesIcon, ReadingModeIcon, ContactIcon, VolumeUpIcon, MapIcon, MicIcon, InstallIcon } from './components/Icons';
+import { SettingsIcon, ChevronLeftIcon, ChevronRightIcon, AlarmIcon, CloseIcon, MenuIcon, QiblaIcon, RamadanModeIcon, PinIcon, SearchIcon, PaletteIcon, SparklesIcon, ReadingModeIcon, ContactIcon, VolumeUpIcon, MapIcon, MicIcon, InstallIcon, LanguageIcon } from './components/Icons';
 import { DropdownMenu } from './components/DropdownMenu';
 import { InfoModal, InfoListItem } from './components/InfoModal';
 import { ContactUsModal } from './components/ContactUsModal';
@@ -25,6 +25,13 @@ import { VoiceAssistant } from './components/VoiceAssistant';
 import { PUASA_SUB_PAGES, HARI_RAYA_SUB_PAGES, INFO_DETAILS, FAQ_CONTENT } from './infoContent';
 import { WEEKDAY_MAP, COUNTRIES, PRAYER_METHODS, LANGUAGES } from './constants';
 import { CountdownEvent } from './types';
+import ConversionForm from './components/ConversionForm';
+import ResultCard from './components/ResultCard';
+import { Dashboard } from './components/Dashboard';
+import { PrayerTimesPage } from './components/PrayerTimesPage';
+import { DoaDzikirPage } from './components/DoaDzikirPage';
+import { QuranPlayer } from './components/QuranPlayer';
+import { LoginScreen } from './components/LoginScreen';
 
 
 type CalendarView = 'monthly' | 'weekly' | 'yearly' | 'daily';
@@ -173,54 +180,32 @@ const MatrixBackground: React.FC<{theme: Theme}> = ({ theme }) => {
 };
 
 const DateConverter: React.FC = () => {
-    const [gregorianDate, setGregorianDate] = useState('');
-    const [hijriResult, setHijriResult] = useState<HijriDate | null>(null);
+    const [conversionResult, setConversionResult] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState('');
 
-    const handleConvert = async () => {
-        if (!gregorianDate) return;
+    const handleConvert = async (date: { day: number; month: number; year: number }) => {
         setIsLoading(true);
-        setError('');
-        setHijriResult(null);
         try {
-            const dateObj = new Date(gregorianDate);
-            const adjustedDate = new Date(dateObj.getTime() + Math.abs(dateObj.getTimezoneOffset()*60000))
-            const result = await convertGToH(adjustedDate);
-            setHijriResult(result);
-        } catch (err) {
-            setError('Gagal mengonversi tanggal.');
+            const gregorianDate = await convertHijriToGregorian(date.day, date.month, date.year);
+            const formattedDate = gregorianDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            
+            setConversionResult({
+                gregorianDate: formattedDate,
+                dayOfWeek: gregorianDate.toLocaleDateString('id-ID', { weekday: 'long' }),
+                significance: "Hasil Konversi",
+                historicalEvents: [] 
+            });
+        } catch (e) {
+            console.error(e);
         } finally {
             setIsLoading(false);
         }
     };
     
     return (
-        <div className="mt-4 pt-4 border-t border-[var(--border-color)]/20 px-2">
-            <h4 className="font-bold mb-2 text-center text-lg text-[var(--text-color-secondary)]">Konversi Masehi ke Hijriah</h4>
-            <div className="flex flex-col space-y-2">
-                <input 
-                    type="date"
-                    value={gregorianDate}
-                    onChange={e => setGregorianDate(e.target.value)}
-                    className="bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 w-full text-center text-white"
-                    style={{ colorScheme: document.body.classList.contains('light') ? 'light' : 'dark' }}
-                />
-                <button 
-                    onClick={handleConvert}
-                    disabled={isLoading || !gregorianDate}
-                    className="w-full p-2 bg-cyan-600 rounded disabled:opacity-50 neon-button"
-                >
-                    {isLoading ? 'Mengonversi...' : 'Konversi'}
-                </button>
-                {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                {hijriResult && (
-                    <div className="text-center bg-black/20 p-2 rounded cyber-border">
-                        <p className="font-bold text-lg">{hijriResult.date}</p>
-                        <p className="text-sm">{`${translateToIndonesian(hijriResult.weekday.en, 'weekday')}, ${hijriResult.day} ${translateToIndonesian(hijriResult.month.en, 'hijri')} ${hijriResult.year} H`}</p>
-                    </div>
-                )}
-            </div>
+        <div className="mt-4 px-2">
+            <ConversionForm onConvert={handleConvert} isLoading={isLoading} />
+            {conversionResult && <div className='mt-4'><ResultCard inputDate={null} result={conversionResult} /></div>}
         </div>
     );
 };
@@ -311,291 +296,235 @@ const CurrentTimeClock: React.FC = () => {
     );
 };
 
-const PrayerTimeDisplay: React.FC<{ 
-    time: string; 
-    name: string; 
-    isNext?: boolean;
-    alarmOn: boolean;
-    onToggleAlarm: () => void;
-    onPlaySound: () => void;
-}> = ({ time, name, isNext = false, alarmOn, onToggleAlarm, onPlaySound }) => (
-    <div className={`flex justify-between items-center p-2 rounded-md cyber-border transition-all ${isNext ? 'bg-cyan-500/50 animate-pulse' : 'bg-black/20'} min-w-[140px]`}>
-        <span className="text-sm sm:text-base uppercase font-bold text-[var(--text-color-secondary)] truncate mr-2">{name}</span>
-        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-            <span className="font-clock text-lg sm:text-xl">{time}</span>
-            <button onClick={onPlaySound} title="Dengarkan Adzan"><VolumeUpIcon className="w-4 h-4 sm:w-5 sm:h-5"/></button>
-            <button 
-                onClick={onToggleAlarm}
-                className={`relative inline-flex items-center h-5 rounded-full w-9 transition-colors flex-shrink-0 ${alarmOn ? 'bg-cyan-500' : 'bg-gray-600'}`}
-                title={alarmOn ? 'Matikan Alarm Adzan' : 'Aktifkan Alarm Adzan'}
-            >
-                <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${alarmOn ? 'translate-x-5' : 'translate-x-1'}`} />
-            </button>
+const WeatherWidget: React.FC<{ locationName: string | null }> = ({ locationName }) => {
+    return (
+        <div className="bg-gradient-to-br from-blue-500 to-blue-700 text-white p-4 rounded-xl shadow-lg mb-6">
+            <div className="flex justify-between items-center">
+                <div>
+                    <h3 className="font-bold text-lg">{locationName || "Lokasi tidak terdeteksi"}</h3>
+                    <p className="text-xs opacity-80">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                <div className="text-right">
+                    <span className="text-3xl font-bold">--°C</span>
+                    <p className="text-xs">Cuaca belum tersedia</p>
+                </div>
+            </div>
         </div>
+    );
+};
+
+const HolidayCountrySelector: React.FC<{ settings: UserSettings; onSettingsChange: (s: UserSettings) => void }> = ({ settings, onSettingsChange }) => (
+    <div className="mt-4 px-2">
+        <label className="text-xs text-gray-400 block mb-1">Negara Hari Libur:</label>
+        <select 
+            value={settings.holidayCountry} 
+            onChange={(e) => onSettingsChange({ ...settings, holidayCountry: e.target.value })} 
+            className="w-full bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-xs text-white"
+        >
+            {COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
+        </select>
     </div>
 );
 
-// Memoized to prevent closing on clock update
-const AdhanSoundSelector = React.memo(({ selectedAdhan, onAdhanChange, onPlayAdhan }: { selectedAdhan: string, onAdhanChange: (val: string) => void, onPlayAdhan: () => void }) => (
-    <div className="mt-3 px-4 max-w-xs mx-auto text-sm border-b border-[var(--border-color)]/20 pb-4 mb-4">
-        <label htmlFor="adhan-sound" className="block text-xs mb-1 text-center">Pilihan Suara Adzan</label>
-        <div className="flex items-center space-x-2">
-            <select 
-                id="adhan-sound"
-                value={selectedAdhan}
-                onChange={(e) => onAdhanChange(e.target.value)}
-                className="flex-grow bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-xs text-white"
-                onMouseDown={e => e.stopPropagation()}
-            >
-                <option value="adhan1">Adzan 1</option>
-                <option value="adhan2">Adzan 2</option>
-                <option value="mishary">Mishary Rashid Alafasy</option>
-                <option value="mustafa">Mustafa Özcan</option>
-            </select>
-            <button onClick={onPlayAdhan} className="p-2 bg-gray-700 border border-[var(--border-color)]/30 rounded-md" title="Dengarkan Pilihan Adzan">
-                <VolumeUpIcon className="w-4 h-4" />
-            </button>
+const DailyFact: React.FC<{ fact: string | null }> = ({ fact }) => {
+    if (!fact) return null;
+    return (
+        <div className="mt-6 p-4 bg-yellow-50/10 border border-yellow-500/30 rounded-lg">
+            <h4 className="font-bold text-yellow-500 mb-2 flex items-center gap-2">
+                <SparklesIcon className="w-4 h-4" /> Fakta Menarik Hari Ini
+            </h4>
+            <p className="text-sm text-gray-300 italic">"{fact}"</p>
         </div>
-    </div>
-));
+    );
+};
 
-// Memoized to prevent closing on clock update
-const LocationSettings = React.memo(({ settings, onSettingsChange }: { settings: UserSettings, onSettingsChange: (s: UserSettings) => void }) => {
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        if (e.target.name === 'prayerMethod') {
-             onSettingsChange({
-                ...settings,
-                prayerMethod: parseInt(e.target.value, 10)
-            });
-        } else {
-            onSettingsChange({
-                ...settings,
-                manualLocation: {
-                    ...settings.manualLocation,
-                    [e.target.name]: e.target.value
-                }
-            });
-        }
+const PrayerInfo: React.FC<{
+    prayerTimes: PrayerTimes | null;
+    nextPrayer: NextPrayer;
+    locationName: string | null;
+    error: string | null;
+    onRetry: () => void;
+    adhanAlarms: AdhanAlarms;
+    onToggleAdhanAlarm: (name: PrayerName) => void;
+    onPlayAdhan: () => void;
+    selectedAdhan: string;
+    onAdhanChange: (sound: string) => void;
+    userSettings: UserSettings;
+    onSettingsChange: (settings: UserSettings) => void;
+    countdownTarget: CountdownTarget | null;
+    selectedCountdownEvent: CountdownEvent;
+    onCountdownEventChange: (event: CountdownEvent) => void;
+    showCountdown?: boolean;
+}> = ({ 
+    prayerTimes, nextPrayer, locationName, error, onRetry, 
+    adhanAlarms, onToggleAdhanAlarm, onPlayAdhan, selectedAdhan, onAdhanChange,
+    userSettings, onSettingsChange, countdownTarget, selectedCountdownEvent, onCountdownEventChange,
+    showCountdown = true
+}) => {
+
+    const handleLocationChange = (field: 'city' | 'country', value: string) => {
+        onSettingsChange({
+            ...userSettings,
+            manualLocation: {
+                ...userSettings.manualLocation,
+                [field]: value
+            }
+        });
     };
 
+    const handleMethodChange = (id: number) => {
+         onSettingsChange({
+            ...userSettings,
+            prayerMethod: id
+        });
+    }
+
+    if (error) {
+        return (
+             <div className="text-center p-4 bg-red-900/20 border border-red-500/50 rounded-lg">
+                <p className="text-red-400 mb-2">{error}</p>
+                <button onClick={onRetry} className="px-4 py-2 bg-red-600 rounded text-white text-sm">Coba Lagi</button>
+            </div>
+        );
+    }
+    
+    if (!prayerTimes) return <div className="text-center animate-pulse text-[var(--text-color)]">Memuat jadwal shalat...</div>;
+
+    const prayerList: PrayerName[] = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
     return (
-        <div className="mt-4 px-4 border-t border-[var(--border-color)]/20 pt-3">
-             <h4 className="font-bold text-sm flex items-center space-x-2 mb-2 justify-center"><MapIcon className="w-4 h-4"/> <span>Lokasi & Jadwal Shalat</span></h4>
-             <div className="grid grid-cols-3 gap-2 text-xs">
-                <div>
-                    <input type="text" name="city" placeholder="Kota" value={settings.manualLocation.city} onChange={handleChange} className="w-full bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-white text-center" onMouseDown={e => e.stopPropagation()}/>
+        <div className="space-y-6">
+            {/* Next Prayer - Conditional */}
+            {showCountdown && nextPrayer.name && (
+                <div className="bg-gradient-to-r from-cyan-900 to-blue-900 p-4 rounded-xl border border-cyan-500/30 text-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/20 rounded-full blur-xl"></div>
+                    <p className="text-sm text-cyan-200">Menuju Waktu Shalat</p>
+                    <h3 className="text-2xl font-bold text-white my-1">{nextPrayer.name === 'Sunrise' ? 'Syuruk' : nextPrayer.name}</h3>
+                    <div className="text-3xl font-mono font-bold text-yellow-400 tracking-wider">{nextPrayer.countdown}</div>
                 </div>
-                 <div>
-                    <input type="text" name="country" placeholder="Negara" value={settings.manualLocation.country} onChange={handleChange} className="w-full bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-white text-center" onMouseDown={e => e.stopPropagation()}/>
-                </div>
+            )}
+
+            {/* Prayer Times List */}
+            <div className="bg-black/10 backdrop-blur-sm rounded-xl p-4 border border-[var(--border-color)]/20 shadow-lg">
+                {prayerList.map(name => {
+                    const time = prayerTimes[name];
+                    const isActive = nextPrayer.name === name; 
+                    const isAlarmOn = adhanAlarms[name]?.isOn;
+
+                    return (
+                        <div key={name} className={`flex justify-between items-center py-4 border-b border-[var(--border-color)]/10 last:border-0 ${isActive ? 'bg-[var(--text-color-secondary)]/10 -mx-4 px-4' : ''}`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${isActive ? 'bg-[var(--text-color-secondary)] text-[var(--bg-color)]' : 'bg-gray-700 text-gray-200'}`}>
+                                    {name.substring(0, 1)}
+                                </div>
+                                <span className={`text-xl ${isActive ? 'text-[var(--text-color-secondary)] font-bold' : 'text-[var(--text-color)]'}`}>
+                                    {name === 'Sunrise' ? 'Syuruk' : (PRAYER_NAMES_TRANSLATION['id'][name] || name)}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="font-mono text-2xl font-bold text-[var(--text-color)]">{time}</span>
+                                {name !== 'Sunrise' && (
+                                    <button onClick={() => onToggleAdhanAlarm(name)} className={`p-2 rounded-full transition-colors ${isAlarmOn ? 'bg-cyan-600/20 text-[var(--text-color-secondary)]' : 'text-gray-500 hover:text-[var(--text-color)]'}`}>
+                                        <VolumeUpIcon className="w-6 h-6" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Settings */}
+            <div className="bg-black/10 backdrop-blur-sm rounded-xl p-4 border border-[var(--border-color)]/20 space-y-4">
+                <h4 className="font-bold text-sm text-[var(--text-color-muted)] uppercase tracking-wider mb-2">Pengaturan Jadwal</h4>
+                
+                {/* Location */}
                 <div>
-                    <select name="prayerMethod" value={settings.prayerMethod} onChange={handleChange} className="w-full bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-white" onMouseDown={e => e.stopPropagation()}>
-                        {PRAYER_METHODS.map(method => (
-                            <option key={method.id} value={method.id}>{method.name}</option>
+                    <label className="text-xs font-semibold text-[var(--text-color)] block mb-1">Lokasi Manual (Kota, Negara)</label>
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            placeholder="Kota (ex: Jakarta)" 
+                            value={userSettings.manualLocation.city} 
+                            onChange={e => handleLocationChange('city', e.target.value)}
+                            className="w-1/2 bg-[var(--bg-color)] border border-[var(--border-color)]/50 rounded px-3 py-2 text-sm text-[var(--text-color)]"
+                        />
+                         <input 
+                            type="text" 
+                            placeholder="Negara (ex: ID)" 
+                            value={userSettings.manualLocation.country} 
+                            onChange={e => handleLocationChange('country', e.target.value)}
+                            className="w-1/2 bg-[var(--bg-color)] border border-[var(--border-color)]/50 rounded px-3 py-2 text-sm text-[var(--text-color)]"
+                        />
+                    </div>
+                    <p className="text-[10px] text-[var(--text-color-muted)] mt-1">*Biarkan kosong untuk menggunakan GPS otomatis.</p>
+                </div>
+
+                {/* Method */}
+                <div>
+                    <label className="text-xs font-semibold text-[var(--text-color)] block mb-1">Metode Perhitungan</label>
+                    <select 
+                        value={userSettings.prayerMethod} 
+                        onChange={e => handleMethodChange(Number(e.target.value))}
+                        className="w-full bg-[var(--bg-color)] border border-[var(--border-color)]/50 rounded px-3 py-2 text-sm text-[var(--text-color)]"
+                    >
+                        {PRAYER_METHODS.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
                         ))}
                     </select>
                 </div>
-             </div>
-        </div>
-    );
-});
 
-const PrayerInfo: React.FC<{ 
-    prayerTimes: PrayerTimes | null, 
-    nextPrayer: NextPrayer, 
-    locationName: string | null,
-    error: string | null,
-    onRetry: () => void,
-    adhanAlarms: AdhanAlarms,
-    onToggleAdhanAlarm: (prayerName: PrayerName) => void,
-    onPlayAdhan: () => void,
-    selectedAdhan: string,
-    onAdhanChange: (sound: string) => void;
-    userSettings: UserSettings;
-    onSettingsChange: (s: UserSettings) => void;
-    countdownTarget: CountdownTarget | null;
-    selectedCountdownEvent: CountdownEvent;
-    onCountdownEventChange: (e: CountdownEvent) => void;
-}> = ({ prayerTimes, nextPrayer, locationName, error, onRetry, adhanAlarms, onToggleAdhanAlarm, onPlayAdhan, selectedAdhan, onAdhanChange, userSettings, onSettingsChange, countdownTarget, selectedCountdownEvent, onCountdownEventChange }) => {
-    if (error) {
-        return (
-            <div className="mt-6 text-center text-yellow-300 bg-black/50 p-3 rounded-lg my-2 mx-4 text-sm flex flex-col items-center space-y-2">
-                <span>{error}</span>
-                <button onClick={onRetry} className="px-4 py-1 text-xs bg-cyan-600 rounded-md neon-button">
-                    Coba Lagi
-                </button>
-            </div>
-        );
-    }
-
-    if (!prayerTimes) return null;
-    
-    const prayerNames: PrayerName[] = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-
-    return (
-        <div className="mt-6">
-            <p className="text-sm mb-2 text-center font-bold uppercase tracking-wider">Jadwal Shalat</p>
-            {/* Updated Grid Layout for Desktop: lg:grid-cols-6 ensures 6 items in one row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 px-4 mx-auto max-w-7xl">
-                {prayerNames.map(name => (
-                     <PrayerTimeDisplay 
-                        key={name}
-                        time={prayerTimes[name]} 
-                        name={name === 'Sunrise' ? 'Syuruk' : (name === 'Fajr' ? 'Subuh' : name)}
-                        isNext={nextPrayer.name === name}
-                        alarmOn={adhanAlarms[name]?.isOn ?? false}
-                        onToggleAlarm={() => onToggleAdhanAlarm(name)}
-                        onPlaySound={onPlayAdhan}
-                     />
-                ))}
-            </div>
-            {nextPrayer.name && (
-                <div className="mt-4 text-center">
-                     <p className="text-[10px] next-prayer-text">
-                        {`Sisa waktu menuju jadwal shalat terdekat ${nextPrayer.name === 'Sunrise' ? 'Syuruk' : (nextPrayer.name === 'Sunset' ? 'Maghrib' : nextPrayer.name)} [${nextPrayer.countdown}]`}
-                    </p>
-                </div>
-            )}
-            {locationName && (
-                 <div className="mt-1 text-center">
-                    <p className="text-[7px] text-white/80 dark:text-white/80 light:text-green-900">Lokasi terdeteksi: {locationName}</p>
-                </div>
-            )}
-            
-            <LocationSettings settings={userSettings} onSettingsChange={onSettingsChange} />
-            <AdhanSoundSelector selectedAdhan={selectedAdhan} onAdhanChange={onAdhanChange} onPlayAdhan={onPlayAdhan} />
-            {countdownTarget && <CountdownTimer target={countdownTarget} selectedEvent={selectedCountdownEvent} onEventChange={onCountdownEventChange} />}
-        </div>
-    );
-}
-
-const DailyFact: React.FC<{fact: string | null}> = ({ fact }) => {
-    if (!fact) return (
-        <div className="my-4 p-3 cyber-border rounded-lg text-center text-sm text-[var(--text-color-muted)] animate-pulse">
-            Memuat fakta menarik...
-        </div>
-    );
-
-    if (fact.startsWith("Gagal memuat")) {
-        return (
-            <div className="my-4 p-3 cyber-border rounded-lg text-center text-sm text-yellow-400">
-                {fact}
-            </div>
-        );
-    }
-
-    return (
-        <div className="my-4 p-3 cyber-border rounded-lg">
-            <h4 className="font-bold text-sm mb-2 text-[var(--text-color-secondary)] flex items-center">
-                <SparklesIcon className="w-4 h-4 mr-2" />
-                Fakta Hari Ini
-            </h4>
-            <p className="text-sm text-justify">{fact}</p>
-        </div>
-    );
-};
-
-const WeatherWidget: React.FC<{ locationName: string | null }> = ({ locationName }) => {
-    const SunIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-full w-full" fill="none" viewBox="0 0 24 24" stroke="orange" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>;
-    const CloudIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-full w-full" fill="none" viewBox="0 0 24 24" stroke="gray" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>;
-    const RainIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-full w-full" fill="none" viewBox="0 0 24 24" stroke="lightblue" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15zm4-3v6m4-6v6m4-3v3" /></svg>;
-    
-    const getWeatherIcon = (weatherCodeStr: string) => {
-        const code = parseInt(weatherCodeStr, 10);
-        if (code === 113) return <SunIcon />;
-        if (code >= 263 && code <= 359) return <RainIcon />;
-        return <CloudIcon />;
-    };
-
-    interface WeatherData { temp_C: string; weatherDesc: { value: string }[]; weatherCode: string; }
-    const [weather, setWeather] = useState<WeatherData | null>(null);
-    const [error, setError] = useState<string | null>(null);
-
-    useEffect(() => {
-        if (!locationName) return;
-        const fetchWeather = async () => {
-            try {
-                const cityPart = locationName.split(',')[0];
-                if (!cityPart || cityPart.trim() === '' || cityPart.toLowerCase() === 'undefined') {
-                    setError(null); 
-                    setWeather(null);
-                    return;
-                }
-                const response = await fetch(`https://wttr.in/${encodeURIComponent(cityPart)}?format=j1`);
-                if (!response.ok) throw new Error('Cuaca tidak tersedia.');
-                const data = await response.json();
-                if (data && data.current_condition && data.current_condition[0]) {
-                     setWeather(data.current_condition[0]);
-                     setError(null);
-                } else {
-                     throw new Error('Format data cuaca tidak valid.');
-                }
-            } catch (err) {
-                // Silently fail or show simple message instead of scary error
-                console.warn("Weather fetch error:", err);
-                setError('Info cuaca tidak tersedia saat ini.');
-                setWeather(null);
-            }
-        };
-        fetchWeather();
-    }, [locationName]);
-
-    if (error) return <div className="text-center text-[10px] text-gray-400 mt-2 p-1">{error}</div>;
-    if (!weather) return <div className="text-center text-xs text-gray-400 mt-2 p-2">Memuat data cuaca...</div>; 
-    
-    return (
-        <div className="mt-4 p-2 text-center border-t border-[var(--border-color)]/20">
-             <h4 className="text-sm mb-2">Cuaca Saat Ini</h4>
-            <div className="flex items-center justify-center space-x-4">
-                <div className="w-10 h-10">{getWeatherIcon(weather.weatherCode)}</div>
+                {/* Adhan Sound */}
                 <div>
-                    <p className="text-4xl font-bold font-clock weather-temp-neon">{weather.temp_C}°C</p>
-                    <p className="text-xs">{weather.weatherDesc[0].value}</p>
+                    <label className="text-xs font-semibold text-[var(--text-color)] block mb-1">Suara Adzan</label>
+                    <div className="flex gap-2 items-center">
+                        <select 
+                            value={selectedAdhan} 
+                            onChange={e => onAdhanChange(e.target.value)}
+                            className="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)]/50 rounded px-3 py-2 text-sm text-[var(--text-color)]"
+                        >
+                            <option value="adhan1">Adzan 1 (Makkah)</option>
+                            <option value="adhan2">Adzan 2 (Madinah)</option>
+                            <option value="mishary">Mishary Rashid</option>
+                            <option value="mustafa">Mustafa Ozcan</option>
+                        </select>
+                        <button onClick={onPlayAdhan} className="p-2 bg-cyan-600 rounded text-white">
+                            <VolumeUpIcon className="w-5 h-5"/>
+                        </button>
+                    </div>
                 </div>
             </div>
+            
+             {/* Countdown Target Selector */}
+             {countdownTarget && showCountdown && (
+                <div className="bg-black/10 backdrop-blur-sm rounded-xl p-4 border border-[var(--border-color)]/20">
+                    <h4 className="font-bold text-sm text-[var(--text-color-muted)] uppercase tracking-wider mb-2">Hitung Mundur</h4>
+                     <select 
+                        value={selectedCountdownEvent} 
+                        onChange={e => onCountdownEventChange(e.target.value as CountdownEvent)}
+                        className="w-full bg-[var(--bg-color)] border border-[var(--border-color)]/50 rounded px-3 py-2 text-sm text-[var(--text-color)]"
+                    >
+                        {Object.values(CountdownEvent).map(e => (
+                             <option key={e} value={e}>{e}</option>
+                        ))}
+                    </select>
+                </div>
+             )}
         </div>
     );
 };
-
-
-const QUICK_THEMES: Theme[] = ['auto', 'light', 'dark', 'theme-ramadan'];
-
-// Memoized to prevent re-renders on clock tick
-const HolidayCountrySelector = React.memo(({ settings, onSettingsChange }: { settings: UserSettings, onSettingsChange: (s: UserSettings) => void }) => (
-    <div className="mt-4 px-2" onMouseDown={e => e.stopPropagation()}>
-        <h4 className="font-bold flex items-center space-x-2 mb-2"><MapIcon className="w-5 h-5"/> <span>Lokasi Hari Libur Nasional</span></h4>
-        <div className="space-y-2 text-sm">
-            <p className='text-xs text-gray-400'>Pilih negara untuk menampilkan hari libur nasional di kalender.</p>
-             <div>
-                <label htmlFor="holidayCountry" className="sr-only">Negara</label>
-                <select 
-                    name="holidayCountry" 
-                    id="holidayCountry" 
-                    value={settings.holidayCountry} 
-                    onChange={e => onSettingsChange({...settings, holidayCountry: e.target.value})} 
-                    className="w-full bg-gray-700 border border-[var(--border-color)]/30 rounded px-2 py-1 text-xs text-white"
-                    onMouseDown={(e) => e.stopPropagation()} // Fix: Stop immediate closing on click
-                >
-                   {COUNTRIES.map(country => (<option key={country.code} value={country.code}>{country.name}</option>))}
-                </select>
-            </div>
-            {/* Google Maps Embed */}
-            <div className="mt-2 rounded-lg overflow-hidden border border-[var(--border-color)]/30 h-40">
-                <iframe
-                    title="Country Map"
-                    width="100%"
-                    height="100%"
-                    style={{ border: 0 }}
-                    loading="lazy"
-                    src={`https://maps.google.com/maps?q=${COUNTRIES.find(c => c.code === settings.holidayCountry)?.name || 'Indonesia'}&t=&z=4&ie=UTF8&iwloc=&output=embed`}
-                ></iframe>
-            </div>
-        </div>
-    </div>
-));
 
 const App: React.FC = () => {
     const [showWelcome, setShowWelcome] = useState(true);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
+        try {
+            const saved = localStorage.getItem('hijri_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch { return null; }
+    });
+    
+    const [currentView, setCurrentView] = useState<AppView>('calendar');
+    
     const [location, setLocation] = useState<Location | null>(null);
     const [errors, setErrors] = useState({
         calendar: null as string | null,
@@ -682,33 +611,31 @@ const App: React.FC = () => {
     
     // Persistence for User Settings
     const [userSettings, setUserSettings] = useState<UserSettings>(() => {
+        const defaults: UserSettings = {
+            manualLocation: { city: '', country: '' },
+            prayerMethod: 20,
+            holidayCountry: 'ID',
+            sunnahFastingNotifications: {
+                seninKamis: { isOn: false, time: '17:00' },
+                ayyamulBidh: { isOn: false, time: '17:00' },
+                arafah: { isOn: false, time: '17:00' },
+                asyura: { isOn: false, time: '17:00' },
+                syawal: { isOn: false, time: '17:00' },
+            }
+        };
         try {
             const saved = localStorage.getItem('hijriCalendarUserSettings');
-            return saved ? JSON.parse(saved) : {
-                manualLocation: { city: '', country: '' },
-                prayerMethod: 20,
-                holidayCountry: 'ID',
-                sunnahFastingNotifications: {
-                    seninKamis: { isOn: false, time: '17:00' },
-                    ayyamulBidh: { isOn: false, time: '17:00' },
-                    arafah: { isOn: false, time: '17:00' },
-                    asyura: { isOn: false, time: '17:00' },
-                    syawal: { isOn: false, time: '17:00' },
-                }
+            if (!saved) return defaults;
+            const parsed = JSON.parse(saved);
+            // Ensure structure is robust against partial saved data
+            return {
+                ...defaults,
+                ...parsed,
+                manualLocation: parsed.manualLocation || defaults.manualLocation,
+                sunnahFastingNotifications: parsed.sunnahFastingNotifications || defaults.sunnahFastingNotifications
             };
         } catch {
-            return {
-                manualLocation: { city: '', country: '' },
-                prayerMethod: 20,
-                holidayCountry: 'ID',
-                sunnahFastingNotifications: {
-                    seninKamis: { isOn: false, time: '17:00' },
-                    ayyamulBidh: { isOn: false, time: '17:00' },
-                    arafah: { isOn: false, time: '17:00' },
-                    asyura: { isOn: false, time: '17:00' },
-                    syawal: { isOn: false, time: '17:00' },
-                }
-            };
+            return defaults;
         }
     });
 
@@ -762,13 +689,13 @@ const App: React.FC = () => {
     const [installPrompt, setInstallPrompt] = useState<any>(null);
     const [lastPlayedAlarm, setLastPlayedAlarm] = useState<string | null>(null);
     const [currentLang, setCurrentLang] = useState<'id' | 'en' | 'ar'>('id');
+    const [showGuestWarning, setShowGuestWarning] = useState(false);
     
     const synth = window.speechSynthesis;
     
     const isInitialLoad = useRef(true);
     const mainContainerRef = useRef<HTMLDivElement>(null);
     const alarmCheckIntervalRef = useRef<number | null>(null);
-    const notificationTimeouts = useRef(new Map<string, number>());
     const audioCtx = useRef<AudioContext | null>(null);
     const alarmAudio1 = useRef(new Audio('https://raw.githubusercontent.com/vandratop/Yuk/e4e4a8572bc82f134d2e62e24331d5d915edc3a4/Bismillahirrahmanirrahim%20%E2%80%94%20Muhammad%20Thaha%20Al%20Junaid.mp3?raw=true'));
     const alarmAudio2 = useRef(new Audio('https://raw.githubusercontent.com/vandratop/Yuk/e4e4a8572bc82f134d2e62e24331d5d915edc3a4/Bismillahirrahmanirrahim_MuflihSafitra.mp3?raw=true'));
@@ -777,7 +704,6 @@ const App: React.FC = () => {
     const adhanAudio2Ref = useRef(new Audio('https://raw.githubusercontent.com/vandratop/Yuk/36c37f1fb8a2b39e4c6cbe391c83ee24c1f531ad/Adhan-02.mp3?raw=true'));
     const adhanMisharyRef = useRef(new Audio('https://raw.githubusercontent.com/vandratop/Yuk/36c37f1fb8a2b39e4c6cbe391c83ee24c1f531ad/Adhan-Mishary-Rashid-Alafasy.mp3?raw=true'));
     const adhanMustafaRef = useRef(new Audio('https://raw.githubusercontent.com/vandratop/Yuk/36c37f1fb8a2b39e4c6cbe391c83ee24c1f531ad/Adhan-Mustafa-%C3%96zcan.mp3?raw=true'));
-    const triggeredAdhanToday = useRef<{[key in PrayerName]?: boolean}>({});
     
     const adhanAudios = useRef<Record<string, HTMLAudioElement>>({
         'adhan1': adhanAudio1Ref.current,
@@ -828,7 +754,7 @@ const App: React.FC = () => {
         };
         
         utterance.lang = localeMap[currentLang] || 'id-ID';
-        utterance.volume = 1.0; // Ensure max volume
+        utterance.volume = 1.0; 
         synth.speak(utterance);
     };
 
@@ -848,7 +774,6 @@ const App: React.FC = () => {
 
         if (soundToPlay === 'default') {
             playClickSound();
-            // Just play TTS immediately for default
             if (ttsText) speak(ttsText);
             return;
         }
@@ -859,15 +784,13 @@ const App: React.FC = () => {
             
             soundToToggle.play().then(() => {
                 if (ttsText) {
-                    // Important: Play TTS *after* the alarm sound finishes
                     soundToToggle.onended = () => {
                         speak(ttsText);
-                        soundToToggle.onended = null; // cleanup
+                        soundToToggle.onended = null;
                     };
                 }
             }).catch(e => {
                 console.error("Error playing sound:", e);
-                // Fallback: speak immediately if audio fails
                 if(ttsText) speak(ttsText);
             });
         }
@@ -900,12 +823,10 @@ const App: React.FC = () => {
                 a.currentTime = 0;
             });
             audio.play().then(() => {
-                // If it's a prayer alarm, follow with TTS
                 if (prayerName) {
-                    // Get localized message
-                    const translatedPrayerName = PRAYER_NAMES_TRANSLATION[currentLang][prayerName] || prayerName;
+                    const translatedName = PRAYER_NAMES_TRANSLATION[currentLang][prayerName] || prayerName;
                     const messageTemplate = ALARM_MESSAGES[currentLang].shalat5Waktu;
-                    const tts = typeof messageTemplate === 'function' ? messageTemplate(translatedPrayerName) : messageTemplate;
+                    const tts = typeof messageTemplate === 'function' ? messageTemplate(translatedName) : messageTemplate;
                     
                     audio.onended = () => {
                         speak(tts);
@@ -923,7 +844,7 @@ const App: React.FC = () => {
     
     useEffect(() => {
         const timer = setTimeout(() => {
-            // Auto close welcome screen
+            // Auto close welcome screen if needed
         }, 8000); 
         return () => clearTimeout(timer);
     }, []);
@@ -1011,21 +932,17 @@ const App: React.FC = () => {
         });
     };
 
-    // ALARM CHECK LOGIC
     const checkAlarms = useCallback(() => {
         const now = new Date();
         const currentTime = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
         
-        // Prevent multiple triggers within the same minute
         if (lastPlayedAlarm === currentTime) return;
 
-        // Check Fixed Alarms
         (Object.keys(alarms) as (keyof AlarmSettings)[]).forEach(key => {
-            if (key === 'shalat5Waktu') return; // Handled separately
+            if (key === 'shalat5Waktu') return; 
             
             const alarm = alarms[key];
             if (alarm.isOn && alarm.time === currentTime) {
-                // Determine text based on current language
                 const msg = ALARM_MESSAGES[currentLang][key];
                 let text = msg || `Waktunya ${key}`;
                 
@@ -1035,30 +952,22 @@ const App: React.FC = () => {
             }
         });
 
-        // Check 5 Daily Prayers & Prayer-Specific Adhan Alarms
         if (prayerTimes && adhanAlarms) {
             const prayerNames: PrayerName[] = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
             
             prayerNames.forEach(name => {
                 const time = prayerTimes[name];
                 if (!time) return;
-                // Parse time "HH:MM (WIB)" -> "HH:MM"
                 const cleanTime = time.split(' ')[0]; 
                 
                 if (cleanTime === currentTime) {
                     const isActive = adhanAlarms[name]?.isOn || alarms.shalat5Waktu.isOn;
                     
                     if (isActive) {
-                        // Original key for API lookup
                         const prayerKey = name; 
-                        
-                        // Play Adhan + TTS (Logic handled inside playAdhanAlarm with translation)
                         playAdhanAlarm(prayerKey);
                         
-                        // Get translated name for UI display
                         const translatedName = PRAYER_NAMES_TRANSLATION[currentLang][name] || name;
-                        
-                        // Fallback text for popup if needed (playAdhanAlarm handles speech)
                         const displayText = ALARM_MESSAGES[currentLang].shalat5Waktu(translatedName);
 
                         setActiveAlarm({ 
@@ -1074,7 +983,7 @@ const App: React.FC = () => {
     }, [alarms, adhanAlarms, prayerTimes, alarmSound, lastPlayedAlarm, playAdhanAlarm, currentLang]);
 
     useEffect(() => {
-        alarmCheckIntervalRef.current = window.setInterval(checkAlarms, 1000); // Check every second
+        alarmCheckIntervalRef.current = window.setInterval(checkAlarms, 1000); 
         return () => {
             if (alarmCheckIntervalRef.current) clearInterval(alarmCheckIntervalRef.current);
         };
@@ -1170,8 +1079,6 @@ const App: React.FC = () => {
         } catch(e) { console.error("Could not save adhan sound", e) }
     }, []);
     
-    // ... [Event Handlers remain unchanged] ...
-
     
     const fetchAndSetData = useCallback(async () => {
         const data = await fetchCalendarData(viewDate.getFullYear(), viewDate.getMonth() + 1);
@@ -1292,7 +1199,7 @@ const App: React.FC = () => {
             }
         };
 
-        if (userSettings.manualLocation.city && userSettings.manualLocation.country) {
+        if (userSettings.manualLocation?.city && userSettings.manualLocation?.country) {
             await fetchWithManual();
         } else {
              navigator.geolocation.getCurrentPosition(
@@ -1310,7 +1217,7 @@ const App: React.FC = () => {
                 },
                 async () => {
                     console.warn('Geolocation permission denied. Trying with manual settings or default.');
-                    if (userSettings.manualLocation.city && userSettings.manualLocation.country) {
+                    if (userSettings.manualLocation?.city && userSettings.manualLocation?.country) {
                          await fetchWithManual();
                     } else {
                         await fetchWithDefault();
@@ -1355,13 +1262,14 @@ const App: React.FC = () => {
 
      useEffect(() => {
         fetchHolidaysData();
-        getDailyFact().then(setDailyFact).catch(err => {
-            console.error("Failed to fetch daily fact:", err);
-            setDailyFact("Gagal memuat fakta hari ini.");
-        });
+        // Commented out to remove "Fakta Hari Ini" as requested
+        // getDailyFact().then(setDailyFact).catch(err => {
+        //     console.error("Failed to fetch daily fact:", err);
+        //     setDailyFact("Gagal memuat fakta hari ini.");
+        // });
     }, [fetchHolidaysData]);
     
-    // ... [Prayer Calculation Effect remains unchanged] ...
+    // ... [Prayer Calculation Effect] ...
 
     const handleNavigation = useCallback((offset: number) => {
         playClickSound();
@@ -1407,8 +1315,6 @@ const App: React.FC = () => {
         else { setCalendarAnimationClass('fade-in'); setViewDate(date); }
     }, [calendarView]);
 
-    // ... [Touch Gesture Effect remains unchanged] ...
-
     const handleDayClick = (day: Day, infoKey: string | null) => {
         playClickSound();
         setSelectedDay(day);
@@ -1425,12 +1331,9 @@ const App: React.FC = () => {
         setIsDetailModalOpen(true);
     };
 
-    // ... [Info Modal Handlers remain unchanged] ...
-    
     const handleMenuClick = (action: string) => {
         playClickSound();
         setIsMenuOpen(false);
-        // ... [Switch case logic from original App.tsx] ...
         switch(action) {
             case 'share': setIsShareModalOpen(true); break;
             case 'contact-us': setIsContactModalOpen(true); break;
@@ -1439,9 +1342,22 @@ const App: React.FC = () => {
             case 'cara-penggunaan': handleOpenInfo('cara-penggunaan'); break;
             case 'ketentuan': handleOpenInfo('ketentuan'); break;
             case 'faq': handleOpenInfo('faq'); break;
+            case 'auth': handleAuthAction(); break;
         }
     };
     
+    const handleAuthAction = () => {
+        if (userProfile && !userProfile.isGuest) {
+            // Logout
+            setUserProfile(null);
+            localStorage.removeItem('hijri_user');
+            setCurrentView('calendar'); // reset view
+        } else {
+            // Login (if guest or null, but UI handles only showing Login when user is null usually, here we support relogin from guest)
+            setUserProfile(null); // Force show login screen
+        }
+    };
+
     const handleOpenInfo = (infoKey: string) => {
         playClickSound();
         const setListContent = (title: string, items: {key: string, title: string}[]) => {
@@ -1580,7 +1496,6 @@ const App: React.FC = () => {
     const retryPrayer = () => { playClickSound(); fetchPrayerData(); };
     const retryHolidays = () => { playClickSound(); fetchHolidaysData(); };
 
-    // Fetch next target on mount or when current date changes
     useEffect(() => {
         if (!today) return;
         getNextCountdownTarget(today.hijri).then(target => {
@@ -1589,7 +1504,66 @@ const App: React.FC = () => {
         });
     }, [today]);
 
+    const handleViewChange = (view: AppView) => {
+        if (userProfile?.isGuest) {
+            setShowGuestWarning(true);
+            setTimeout(() => setShowGuestWarning(false), 3000);
+            return;
+        }
+        playClickSound();
+        setCurrentView(view);
+    };
+
+    const onCountdownEventChange = useCallback(async (event: CountdownEvent) => {
+        if (!today) return;
+        setSelectedCountdownEvent(event);
+        const target = await getSpecificCountdownTarget(event, today.hijri);
+        setCountdownTarget(target);
+    }, [today]);
+
     const renderContent = () => {
+        if (currentView === 'prayer') {
+            return (
+                <PrayerTimesPage onBack={() => setCurrentView('calendar')}>
+                    <CurrentTimeClock />
+                    <WeatherWidget locationName={locationName} />
+                    <PrayerInfo 
+                        prayerTimes={prayerTimes} 
+                        nextPrayer={nextPrayer} 
+                        locationName={locationName} 
+                        error={errors.prayer} 
+                        onRetry={retryPrayer}
+                        adhanAlarms={adhanAlarms}
+                        onToggleAdhanAlarm={handleToggleAdhanAlarm}
+                        onPlayAdhan={playAdhan}
+                        selectedAdhan={selectedAdhan}
+                        onAdhanChange={handleAdhanChange}
+                        userSettings={userSettings}
+                        onSettingsChange={handleUpdateSettings}
+                        countdownTarget={countdownTarget}
+                        selectedCountdownEvent={selectedCountdownEvent}
+                        onCountdownEventChange={async (event) => {
+                            if(!today) return;
+                            setSelectedCountdownEvent(event);
+                            const target = await getSpecificCountdownTarget(event, today.hijri);
+                            setCountdownTarget(target);
+                        }}
+                        showCountdown={false} 
+                    />
+                </PrayerTimesPage>
+            );
+        }
+        if (currentView === 'qibla') {
+            return <QiblaCompass isOpen={true} onClose={() => setCurrentView('calendar')} location={location || {latitude: 0, longitude: 0}} />;
+        }
+        if (currentView === 'doa') {
+            return <DoaDzikirPage onBack={() => setCurrentView('calendar')} />;
+        }
+        if (currentView === 'quran') {
+            return <QuranPlayer onBack={() => setCurrentView('calendar')} />;
+        }
+
+        // Calendar View Logic
         if (loading && calendarView !== 'yearly' && !calendarData) { return <CalendarSkeletonLoader />; }
         if (!today) { if (!loading && errors.calendar) return null; return <CalendarSkeletonLoader />; }
         
@@ -1670,6 +1644,8 @@ const App: React.FC = () => {
                     </div>
                 )}
                 
+                <Dashboard onChangeView={handleViewChange} />
+
                 <div id="calendar-view" className={calendarAnimationClass}>
                     {/* Filter Tampilan */}
                     {!isReadingMode && ['monthly', 'weekly', 'daily'].includes(calendarView) && (
@@ -1732,7 +1708,6 @@ const App: React.FC = () => {
                                 }}
                                 isLoading={loading}
                             />
-                            {/* Legend is integrated here at bottom of yearly view logic */}
                             <Legend />
                         </>
                     ) : calendarView === 'daily' && currentDayData ? (
@@ -1775,35 +1750,7 @@ const App: React.FC = () => {
                     )}
                     {!isReadingMode && (
                         <>
-                             {/* Clock and Weather */}
-                            <CurrentTimeClock />
-                            <WeatherWidget locationName={locationName} />
-                            
-                            {/* Prayer Info Section */}
-                            <PrayerInfo 
-                                prayerTimes={prayerTimes} 
-                                nextPrayer={nextPrayer} 
-                                locationName={locationName} 
-                                error={errors.prayer} 
-                                onRetry={retryPrayer}
-                                adhanAlarms={adhanAlarms}
-                                onToggleAdhanAlarm={handleToggleAdhanAlarm}
-                                onPlayAdhan={playAdhan}
-                                selectedAdhan={selectedAdhan}
-                                onAdhanChange={handleAdhanChange}
-                                userSettings={userSettings}
-                                onSettingsChange={handleUpdateSettings}
-                                countdownTarget={countdownTarget}
-                                selectedCountdownEvent={selectedCountdownEvent}
-                                onCountdownEventChange={async (event) => {
-                                    // Calculate new target when event changes manually in timer
-                                    if(!today) return;
-                                    setSelectedCountdownEvent(event);
-                                    const target = await getSpecificCountdownTarget(event, today.hijri);
-                                    setCountdownTarget(target);
-                                }}
-                            />
-                            
+                            {countdownTarget && <CountdownTimer target={countdownTarget} selectedEvent={selectedCountdownEvent} onEventChange={onCountdownEventChange} />}
                             <div className="my-6">
                                 <DateConverter />
                             </div>
@@ -1818,11 +1765,24 @@ const App: React.FC = () => {
         return <WelcomeScreen onDismiss={() => setShowWelcome(false)} />;
     }
 
+    if (!userProfile) {
+        return <LoginScreen onLogin={setUserProfile} />;
+    }
+
+    // Determine if Chatbot should be shown based on current view
+    const shouldShowChatbot = currentView === 'calendar' || currentView === 'prayer' || currentView === 'doa';
+
     return (
         <>
             <MatrixBackground theme={theme} />
             {activeAlarm && <ActiveAlarmPopup alarm={activeAlarm} onDismiss={() => setActiveAlarm(null)} />}
             {theme === 'theme-ramadan' && <RamadanContainer />}
+            {showGuestWarning && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-red-600 text-white px-4 py-2 rounded-lg shadow-xl animate-bounce">
+                    Silahkan login terlebih dahulu untuk akses ke menu ini
+                </div>
+            )}
+            
             <div className="min-h-screen bg-transparent p-2 sm:p-4 font-jannah fade-in">
                 <div ref={mainContainerRef} className="main-container relative w-full md:max-w-3xl lg:max-w-4xl mx-auto backdrop-blur-sm cyber-border p-2 sm:p-4 rounded-lg transition-all duration-300">
                      {searchResults && <SearchResultsModal results={searchResults} onClose={() => setSearchResults(null)} onJumpToDate={(date) => { handleDateJump(date); setSearchResults(null); }} />}
@@ -1884,38 +1844,38 @@ const App: React.FC = () => {
                         hijriHoliday={hijriHolidays.get(selectedDay.hijri.date)}
                         infoTypeKey={selectedDayInfoKey}
                     />}
-                    {location && <QiblaCompass isOpen={isQiblaModalOpen && !isReadingMode} onClose={() => setIsQiblaModalOpen(false)} location={location} />}
                     
-                    {!isReadingMode && (
+                    {!isReadingMode && currentView === 'calendar' && (
                         <>
                             <header className="flex justify-between items-center mb-4 relative">
                                 <div className="flex items-center space-x-1">
                                     <button onClick={() => { playClickSound(); setIsSettingsOpen(prev => !prev); }} className="p-2"><SettingsIcon /></button>
-                                    <div className="relative">
+                                    
+                                    {/* PWA Install Icon Positioned Here */}
+                                    {installPrompt && (
+                                        <button onClick={handleInstallClick} className="p-2 text-yellow-400 animate-pulse" title="Install App">
+                                            <InstallIcon className="w-5 h-5" />
+                                        </button>
+                                    )}
+
+                                    <div className="relative flex items-center">
+                                        <LanguageIcon className="w-6 h-6 mr-1" />
                                         <select 
                                             onChange={(e) => changeLanguage(e.target.value)}
-                                            className="bg-transparent text-xs p-2 text-[var(--text-color)] appearance-none border-none outline-none cursor-pointer hover:text-[var(--text-color-secondary)] font-bold text-center w-10 sm:w-auto"
+                                            className="bg-transparent text-xs p-1 text-[var(--text-color)] appearance-none border-none outline-none cursor-pointer hover:text-[var(--text-color-secondary)] font-bold w-24 truncate"
                                             value={getLanguageFromCookie()}
                                         >
                                             {LANGUAGES.map(lang => (
-                                                <option key={lang.code} value={lang.code} className="text-black">{lang.code.toUpperCase()}</option>
+                                                <option key={lang.code} value={lang.code} className="text-black">{lang.name}</option>
                                             ))}
                                         </select>
                                     </div>
-                                    <button onClick={() => { playClickSound(); setIsQiblaModalOpen(prev => !prev); }} className="p-2 text-2xl">
-                                        <span>🕋</span>
-                                    </button>
                                 </div>
                                 <h1 className="text-xl sm:text-2xl font-bold text-center">Kalender Hijriah</h1>
                                 <div className="flex items-center space-x-1">
                                 <button onClick={() => setIsSearchVisible(v => !v)} className="p-2"><SearchIcon /></button>
-                                {installPrompt && (
-                                    <button onClick={handleInstallClick} className="p-2 text-yellow-400 animate-pulse" title="Install App">
-                                        <InstallIcon className="w-6 h-6" />
-                                    </button>
-                                )}
                                 <button onClick={() => { playClickSound(); setIsMenuOpen(prev => !prev); }} className="p-2"><MenuIcon /></button>
-                                <DropdownMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onAction={handleMenuClick}/>
+                                <DropdownMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} onAction={handleMenuClick} isLoggedIn={!!userProfile} isGuest={userProfile?.isGuest}/>
                                 </div>
                             </header>
 
@@ -1954,10 +1914,10 @@ const App: React.FC = () => {
                          )}
                     </main>
 
-                    {!isReadingMode && (
+                    {!isReadingMode && currentView === 'calendar' && (
                         <>
                             <div className="px-2 sm:px-0">
-                                <DailyFact fact={dailyFact} />
+                                <DailyFact fact={null} /> {/* Disabled Fact as requested */}
                             </div>
 
                             <footer className="text-center text-xs mt-6 space-y-4">
@@ -1997,24 +1957,40 @@ const App: React.FC = () => {
                     <span>Keluar</span>
                 </button>
             )}
-            {!isReadingMode && location && <ChatBot location={location} prayerTimes={prayerTimes} sahurPopupText={activeAlarm?.name === 'sahur' ? activeAlarm.text : null} isOpen={isChatBotOpen} setIsOpen={setIsChatBotOpen} initialMessage={chatBotInitialMessage} onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)} />}
-            <VoiceAssistant 
-                isOpen={isVoiceAssistantOpen} 
-                onClose={() => setIsVoiceAssistantOpen(false)}
-                alarms={alarms}
-                onToggleAlarm={handleToggleAlarm}
-            />
-             {!isChatBotOpen && !isReadingMode && (
-                <div className="chatbot-cta-container">
-                    <button
-                        onClick={() => { playClickSound(); setIsChatBotOpen(true); }}
-                        className="chatbot-icon-button"
-                        aria-label="Open Chat"
-                    >
-                        <img src="https://raw.githubusercontent.com/vandratop/Yuk/3ca087bbe1dfa3822dc66f60ba3f8c2cdf0772b0/AI-HIJR_Chatbot.gif" alt="AI Hijr Assistant" />
-                    </button>
-                    <p className="chatbot-cta-text">Yuk, Tanya AI-HIJR</p>
-                </div>
+            
+            {/* Global Components (Chatbot & Voice Assistant) */}
+            {shouldShowChatbot && !isReadingMode && (
+                <>
+                    {!isChatBotOpen && (
+                        <div className="chatbot-cta-container">
+                            <button
+                                onClick={() => { playClickSound(); setIsChatBotOpen(true); }}
+                                className="chatbot-icon-button"
+                                aria-label="Open Chat"
+                            >
+                                <img src="https://raw.githubusercontent.com/vandratop/Yuk/3ca087bbe1dfa3822dc66f60ba3f8c2cdf0772b0/AI-HIJR_Chatbot.gif" alt="AI Hijr Assistant" />
+                            </button>
+                            <p className="chatbot-cta-text">Yuk, Tanya AI-HIJR</p>
+                        </div>
+                    )}
+                    
+                    <ChatBot 
+                        isOpen={isChatBotOpen} 
+                        setIsOpen={setIsChatBotOpen} 
+                        location={location || {latitude: 0, longitude: 0}} 
+                        prayerTimes={prayerTimes} 
+                        sahurPopupText={null} 
+                        initialMessage={chatBotInitialMessage}
+                        onOpenVoiceAssistant={() => setIsVoiceAssistantOpen(true)}
+                    />
+                    
+                    <VoiceAssistant 
+                        isOpen={isVoiceAssistantOpen} 
+                        onClose={() => setIsVoiceAssistantOpen(false)}
+                        alarms={alarms}
+                        onToggleAlarm={handleToggleAlarm}
+                    />
+                </>
             )}
         </>
     );

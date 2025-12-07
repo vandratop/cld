@@ -389,32 +389,35 @@ const INFO_DETAILS: { [key: string]: { title: string, content: React.ReactNode }
         content: (
              <div>
                 <InfoSection title="Navigasi & Fitur Utama">
-                    <p><strong>Navigasi Kalender:</strong> Gunakan tombol "Berikutnya" dan "Sebelumnya" untuk berpindah antar bulan/minggu/tahun. Klik tanggal untuk melihat detail atau menambahkan catatan.</p>
-                    <p><strong>Pengaturan (Ikon Gerigi):</strong> Ubah tema (terang/gelap/Ramadhan), bahasa, perbesar tampilan (zoom), dan atur lokasi manual untuk jadwal shalat dan hari libur nasional.</p>
-                    <p><strong>Alarm (Ikon Lonceng):</strong> Atur berbagai alarm sunnah seperti Tahajud, Dhuha, dan pengingat tidur. Alarm Sahur akan aktif secara otomatis pada hari-hari puasa.</p>
-                    <p><strong>Menu Lainnya (Ikon Tiga Baris):</strong> Akses fitur berbagi, cetak kalender, FAQ, serta menu informasi penting lainnya.</p>
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Navigasi Kalender:</strong> Gunakan tombol "Berikutnya" dan "Sebelumnya" untuk berpindah antar bulan/minggu/tahun. Klik tanggal untuk melihat detail atau menambahkan catatan. Pilih format kalender (Hijriah/Masehi/Gabungan) sesuai kebutuhan.</li>
+                        <li><strong>Pengaturan (Ikon Gerigi):</strong> Ubah tema (terang/gelap/Ramadhan), bahasa, perbesar tampilan (zoom), dan atur lokasi manual untuk jadwal shalat dan hari libur nasional.</li>
+                        <li><strong>Alarm & Suara Adzan (Ikon Lonceng):</strong> Atur berbagai alarm sunnah seperti Tahajud, Dhuha, Dzikir Pagi/Petang, dan pengingat tidur. Pilih suara Adzan yang diinginkan (Makkah, Madinah, dll). Fitur TTS akan membacakan pengingat suara.</li>
+                        <li><strong>Live Conversation:</strong> Gunakan fitur Voice Assistant untuk bertanya secara langsung menggunakan suara. Klik ikon mikrofon untuk memulai.</li>
+                        <li><strong>Berbagi & Cetak:</strong> Klik ikon menu (tiga garis) lalu pilih "Bagikan & Cetak" untuk mengunduh kalender dalam format gambar atau mencetaknya langsung. Tersedia juga opsi QR Code.</li>
+                        <li><strong>Al-Qur'an Digital:</strong> Akses fitur Al-Qur'an untuk membaca ayat suci, mendengarkan murottal, dan melihat terjemahan. Gunakan fitur pencarian untuk menemukan ayat tertentu.</li>
+                        <li><strong>Arah Kiblat:</strong> Gunakan fitur kompas untuk menemukan arah Ka'bah. Pastikan GPS aktif dan kalibrasi kompas perangkat Anda.</li>
+                    </ul>
                 </InfoSection>
                 <InfoSection title="Panduan Chatbot AI Assistant">
                     <p>AI Assistant kami dirancang untuk membantu Anda dengan berbagai kebutuhan informasi. Pilih mode yang tepat untuk hasil terbaik:</p>
                     <ul className="list-disc pl-5 space-y-2">
                         <li>
                             <strong><span className="text-purple-400">Complex Mode (Mode Kompleks):</span></strong> Mode default yang paling cerdas. Gunakan untuk pertanyaan yang memerlukan pemahaman mendalam, analisis, atau kreativitas.
-                            <br/><em className="text-xs text-gray-400">Contoh: "Jelaskan konsep takdir dalam Islam dengan analogi yang mudah dipahami" atau "Buatkan saya rencana belajar untuk menghafal Juz Amma dalam 30 hari".</em>
                         </li>
                         <li>
-                            <strong><span className="text-cyan-400">Chat Mode (Mode Percakapan):</span></strong> Gunakan untuk percakapan umum atau pertanyaan sederhana tentang Islam. Mode ini lebih cepat dan ringkas.
-                            <br/><em className="text-xs text-gray-400">Contoh: "Apa saja rukun iman?" atau "Siapakah Khadijah radhiyallahu ‘anha?".</em>
+                            <strong><span className="text-cyan-400">Chat Mode (Mode Percakapan):</span></strong> Gunakan untuk percakapan umum atau pertanyaan sederhana tentang Islam.
                         </li>
                         <li>
-                            <strong><span className="text-blue-400">Search Mode (Mode Pencarian):</span></strong> Gunakan untuk topik yang membutuhkan informasi terkini atau berita. Jawaban akan didukung oleh data dari Google Search dan menyertakan tautan sumber.
-                             <br/><em className="text-xs text-gray-400">Contoh: "Berita terbaru tentang Islamic center di Eropa" atau "Kapan Islamic Finance Conference berikutnya diadakan?".</em>
+                            <strong><span className="text-blue-400">Search Mode (Mode Pencarian):</span></strong> Gunakan untuk topik yang membutuhkan informasi terkini atau berita.
                         </li>
                         <li>
-                            <strong><span className="text-green-400">Maps Mode (Mode Peta):</span></strong> Gunakan untuk pertanyaan berbasis lokasi. Jawaban akan didukung oleh data dari Google Maps.
-                             <br/><em className="text-xs text-gray-400">Contoh: "Cari masjid terdekat dari sini" atau "Restoran halal di sekitar Monas".</em>
+                            <strong><span className="text-green-400">Maps Mode (Mode Peta):</span></strong> Gunakan untuk pertanyaan berbasis lokasi (misal: cari masjid terdekat).
                         </li>
                     </ul>
-                    <p className="mt-2">Anda juga dapat menggunakan fitur <strong>Voice Assistant</strong> (ikon suara) untuk bertanya secara langsung menggunakan suara.</p>
+                </InfoSection>
+                 <InfoSection title="Translate Bahasa">
+                    <p>Gunakan menu ikon Globe/Bahasa di header untuk menerjemahkan antarmuka aplikasi ke berbagai bahasa dunia (Inggris, Arab, dll) menggunakan Google Translate.</p>
                 </InfoSection>
             </div>
         )
@@ -430,13 +433,13 @@ const INFO_DETAILS: { [key: string]: { title: string, content: React.ReactNode }
                             <strong>Disclaimer Akurasi Data:</strong> Data kalender dan waktu shalat yang ditampilkan di aplikasi ini bersumber dari Al-Adhan API dan API pihak ketiga lainnya. Kami berusaha untuk menyajikan data seakurat mungkin sebagai panduan. Namun, karena perbedaan metode hisab dan rukyat, mungkin terdapat sedikit perbedaan dengan perhitungan yang digunakan oleh otoritas lokal Anda. <strong>Oleh karena itu, untuk penentuan tanggal-tanggal krusial dalam ibadah seperti awal Ramadhan, 1 Syawal (Idul Fitri), dan 10 Dzulhijjah (Idul Adha), pengguna diwajibkan untuk SELALU merujuk dan mengikuti pengumuman resmi dari pemerintah (misalnya, Kementerian Agama RI) atau lembaga keagamaan yang berwenang di wilayah masing-masing.</strong> Aplikasi ini tidak bertanggung jawab atas keputusan ibadah yang diambil hanya berdasarkan data di dalamnya.
                         </li>
                         <li>
-                            <strong>Layanan Lokasi & Waktu Shalat:</strong> Akurasi waktu shalat sangat bergantung pada data lokasi (GPS) yang akurat dari perangkat Anda. Pastikan layanan lokasi diaktifkan untuk hasil terbaik. Aplikasi ini tidak bertanggung jawab atas perbedaan waktu shalat yang mungkin timbul.
+                            <strong>Layanan Lokasi & Waktu Shalat:</strong> Akurasi waktu shalat sangat bergantung pada data lokasi (GPS) yang akurat dari perangkat Anda. Pastikan layanan lokasi diaktifkan untuk hasil terbaik.
                         </li>
                         <li>
                             <strong>Chatbot AI Assistant:</strong> Jawaban yang diberikan oleh AI Assistant dihasilkan oleh model bahasa dari Google Gemini dan bertujuan untuk memberikan informasi umum. <strong>Jawaban tersebut tidak boleh dianggap sebagai fatwa atau nasihat hukum keagamaan yang mutlak.</strong> Untuk masalah Fiqih yang kompleks dan personal, sangat disarankan untuk berkonsultasi langsung dengan ulama, ustadz, atau ahli agama yang terpercaya.
                         </li>
-                        <li>
-                            <strong>Tanggung Jawab Pengguna:</strong> Pengguna bertanggung jawab penuh atas penggunaan informasi dan fitur yang ada di dalam aplikasi ini dalam menjalankan amalan ibadah.
+                         <li>
+                            <strong>Hubungi Admin:</strong> Jika Anda menemukan kesalahan data atau memiliki saran, silakan hubungi kami melalui menu "Hubungi Kami" di sidebar atau email langsung ke admin.
                         </li>
                     </ul>
                 </InfoSection>
@@ -444,16 +447,13 @@ const INFO_DETAILS: { [key: string]: { title: string, content: React.ReactNode }
                     <p>Kami sangat menghargai privasi Anda. Aplikasi ini dirancang untuk melindungi data Anda:</p>
                      <ul className="list-disc pl-5 space-y-2">
                         <li>
-                            <strong>Penggunaan Data Lokasi:</strong> Aplikasi ini meminta akses ke lokasi (GPS) perangkat Anda dengan <strong>satu tujuan spesifik:</strong> untuk menghitung waktu shalat yang akurat sesuai posisi Anda. Perhitungan ini terjadi secara real-time.
+                            <strong>Penggunaan Data Lokasi:</strong> Aplikasi ini meminta akses ke lokasi (GPS) perangkat Anda dengan <strong>satu tujuan spesifik:</strong> untuk menghitung waktu shalat yang akurat sesuai posisi Anda.
                         </li>
                         <li>
-                            <strong>Kebijakan Non-Penyimpanan & Non-Pembagian:</strong> Kami tegaskan bahwa data koordinat lokasi Anda <strong>TIDAK PERNAH DIKIRIM KE SERVER KAMI, TIDAK PERNAH DISIMPAN, DAN TIDAK PERNAH DIBAGIKAN</strong> ke pihak ketiga manapun. Data lokasi hanya digunakan secara sementara pada perangkat Anda untuk melakukan permintaan ke API penyedia waktu shalat, setelah itu data tersebut akan dihapus dan tidak meninggalkan jejak. Privasi Anda adalah prioritas utama kami.
+                            <strong>Kebijakan Non-Penyimpanan:</strong> Data koordinat lokasi Anda <strong>TIDAK PERNAH DIKIRIM KE SERVER KAMI, TIDAK PERNAH DISIMPAN, DAN TIDAK PERNAH DIBAGIKAN</strong> ke pihak ketiga manapun.
                         </li>
                         <li>
-                            <strong>Data Lokal:</strong> Catatan pribadi, pengingat, dan pengaturan Anda disimpan secara aman di penyimpanan lokal peramban (localStorage) pada perangkat Anda sendiri. Data ini tidak pernah dikirim atau diakses oleh kami.
-                        </li>
-                         <li>
-                            <strong>Data Pengguna:</strong> Kami tidak mengumpulkan, menyimpan, atau membagikan data pribadi apa pun seperti nama, email, atau informasi kontak lainnya, kecuali jika Anda secara sukarela mengirimkannya melalui formulir "Hubungi Kami".
+                            <strong>Data Lokal:</strong> Catatan pribadi, pengingat, dan pengaturan Anda disimpan secara aman di penyimpanan lokal peramban (localStorage) pada perangkat Anda sendiri.
                         </li>
                     </ul>
                 </InfoSection>
