@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { AppView } from '../types';
-import { QiblaIcon, MapIcon, SparklesIcon } from './Icons';
+import { MapIcon, SparklesIcon } from './Icons';
 
 interface DashboardProps {
     onChangeView: (view: AppView) => void;
@@ -14,7 +14,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onChangeView }) => {
             onClick={onClick}
             className="flex flex-col items-center justify-center p-4 bg-black/30 border border-[#00ffdf]/20 rounded-xl hover:bg-[#00ffdf]/10 transition-all active:scale-95 group h-32 w-full"
         >
-            <div className={`p-3 rounded-full mb-2 group-hover:scale-110 transition-transform ${color} text-white shadow-lg`}>
+            <div className={`p-3 rounded-full mb-2 group-hover:scale-110 transition-transform ${color} text-white shadow-lg flex items-center justify-center`}>
                 {icon}
             </div>
             <span className="font-bold text-sm text-white">{title}</span>
@@ -34,7 +34,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onChangeView }) => {
             <MenuCard 
                 title="Arah Kiblat" 
                 desc="Kompas Kiblat"
-                icon={<QiblaIcon className="w-6 h-6"/>} 
+                icon={<span className="text-2xl">🕋</span>} 
                 onClick={() => onChangeView('qibla')}
                 color="bg-emerald-600"
             />

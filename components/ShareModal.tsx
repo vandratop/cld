@@ -201,12 +201,14 @@ const ShareableComponent: React.FC<Omit<ShareModalProps, 'isOpen'|'onClose'|'tar
     let content: React.ReactNode = null;
     let containerWidth = '480px';
     
-    // Explicit background to ensure capture works correctly
-    const containerStyle = {
+    // Explicit background to ensure capture works correctly without transparency
+    const containerStyle: React.CSSProperties = {
          width: containerWidth, 
          backgroundColor: '#002b25', // Default dark for capture safety
          color: '#ffffff',
-         fontFamily: "'Exo 2', sans-serif"
+         fontFamily: "'Exo 2', sans-serif",
+         position: 'relative',
+         padding: '20px'
     };
 
     switch (shareMode.type) {
@@ -247,7 +249,7 @@ const ShareableComponent: React.FC<Omit<ShareModalProps, 'isOpen'|'onClose'|'tar
             containerStyle.width = containerWidth;
             // Override styles for larger fonts in Yearly view share
             content = <>
-                <h2 className="text-4xl font-bold text-center my-4 text-[var(--text-color-secondary)]">{props.viewDate.getFullYear()}</h2>
+                <h2 className="text-4xl font-bold text-center my-4 text-[#00ffdf]">{props.viewDate.getFullYear()}</h2>
                 <div className="text-xl"> {/* wrapper to bump up font size inside grid */}
                     <YearlyView yearData={props.yearlyCalendarData} todayHijriDate={props.today.hijri.date} customEvents={props.customEvents} customHijriEvents={[]}
                         nationalHolidays={props.nationalHolidays} onMonthClick={() => {}} isLoading={false} isPrintable={true} />
@@ -276,9 +278,9 @@ const ShareableComponent: React.FC<Omit<ShareModalProps, 'isOpen'|'onClose'|'tar
 
     return (
         <div style={containerStyle}>
-            <div className="main-container cyber-border p-4 rounded-lg" style={{ backgroundColor: `rgba(0, 89, 76, 1)` }}>
+            <div className="main-container cyber-border p-4 rounded-lg" style={{ backgroundColor: `rgba(0, 89, 76, 1)`, boxShadow: 'none' }}>
                {content}
-               <p className="text-center text-xs mt-4">by Te_eR Inovative @ {new Date().getFullYear()}</p>
+               <p className="text-center text-xs mt-4 text-[#00ffdf]">by Te_eR Inovative @ {new Date().getFullYear()} | Digital Kalender Hijriah</p>
             </div>
         </div>
     );
@@ -348,8 +350,9 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
         tempContainer.style.top = '-9999px';
-        // Ensure no transparency bleed through
-        tempContainer.style.backgroundColor = '#000'; 
+        tempContainer.style.zIndex = '-1';
+        // Force a solid background for the container to avoid transparency issues
+        tempContainer.style.backgroundColor = '#002b25'; 
         document.body.appendChild(tempContainer);
         
         try {
@@ -363,7 +366,10 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
             const canvas = await html2canvas(tempContainer.firstChild as HTMLElement, {
                 useCORS: true,
                 scale: 2,
-                backgroundColor: '#002b25', // Force dark background for image
+                backgroundColor: '#002b25', // Explicitly set background color for the canvas
+                logging: false,
+                allowTaint: true,
+                imageTimeout: 15000,
             });
 
             const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -372,7 +378,10 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                 const printWindow = window.open('', '_blank');
                 printWindow?.document.write(`<html><head><title>Cetak Kalender ${viewDate.getFullYear()}</title></head><body style="margin:0;"><img src="${dataUrl}" style="width:100%;"></body></html>`);
                 printWindow?.document.close();
-                printWindow?.print();
+                setTimeout(() => {
+                    printWindow?.print();
+                    // printWindow?.close(); // Optional: close automatically
+                }, 500);
                 resetAndClose();
             } else { // Share (preview)
                 setGeneratedImage(dataUrl);
@@ -393,7 +402,7 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
         setIsProcessing(true);
         try {
             const blob = await (await fetch(generatedImage)).blob();
-            const file = new File([blob], `kalender-hijriyah-${shareMode.type}.png`, { type: 'image/png' });
+            const file = new File([blob], `kalender-hijriyah-${shareMode.type}.jpg`, { type: 'image/jpeg' });
             const shareTitle = `Kalender Hijriyah`;
             const shareText = `Lihat kalender Hijriyah ini!`;
 
@@ -422,8 +431,10 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
         if (!generatedImage) return;
         const link = document.createElement('a');
         link.href = generatedImage;
-        link.download = `kalender-hijriyah-${shareMode.type}.png`;
+        link.download = `kalender-hijriyah-${shareMode.type}.jpg`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     };
 
     const handleGenerateQrCode = async () => {

@@ -352,8 +352,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ isOpen, onClose,
 
     return (
         <div className="fixed inset-0 bg-black/90 flex flex-col justify-center items-center z-50 fade-in overflow-hidden">
-            <div className="absolute top-4 right-4">
-                <button onClick={onClose} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700"><CloseIcon /></button>
+            <div className="absolute top-4 right-4 z-50">
+                <button onClick={onClose} className="p-2 bg-gray-800 rounded-full hover:bg-gray-700 pointer-events-auto">
+                    <CloseIcon />
+                </button>
             </div>
 
             <div className="w-full max-w-md p-6 text-center h-full flex flex-col justify-center">

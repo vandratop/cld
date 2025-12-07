@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import type { Location } from '../types';
-import { CloseIcon, MapIcon } from './Icons';
+import { CloseIcon, MapIcon, ChevronLeftIcon } from './Icons';
 
 interface QiblaCompassProps {
     isOpen: boolean;
@@ -13,23 +14,34 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
     const [permissionGranted, setPermissionGranted] = useState(false);
     const [qiblaDirection, setQiblaDirection] = useState(0);
     const [compassHeading, setCompassHeading] = useState(0);
+    const [loading, setLoading] = useState(true);
+
+    // Initial permission check for non-iOS devices
+    useEffect(() => {
+        if (typeof (DeviceOrientationEvent as any).requestPermission !== 'function') {
+            setPermissionGranted(true);
+        }
+    }, []);
 
     const fetchQiblaDirection = async (lat: number, lon: number) => {
+        if (lat === 0 && lon === 0) return; // Wait for valid location
+        setLoading(true);
         setError(null);
         try {
             const response = await fetch(`https://api.aladhan.com/v1/qibla/${lat}/${lon}`);
             if (!response.ok) {
-                throw new Error('Gagal mengambil data arah kiblat dari server.');
+                throw new Error('Gagal mengambil data arah kiblat.');
             }
             const data = await response.json();
-            if (data.code === 200 && data.data && typeof data.data.direction === 'number') {
+            if (data.code === 200 && data.data) {
                 setQiblaDirection(data.data.direction);
-            } else {
-                throw new Error('Format data kiblat tidak valid.');
             }
         } catch (err) {
             console.error(err);
-            setError((err as Error).message);
+            // Fallback direction if API fails (approximate direction to Makkah from Indonesia)
+            setQiblaDirection(295); 
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -40,22 +52,29 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
                     if (permissionState === 'granted') {
                         setPermissionGranted(true);
                     } else {
-                        setError('Izin untuk mengakses orientasi perangkat ditolak.');
+                        setError('Izin akses orientasi ditolak.');
                     }
                 })
                 .catch((err: any) => {
                     console.error(err);
-                    setError('Gagal meminta izin orientasi perangkat.');
+                    setError('Gagal meminta izin orientasi.');
                 });
-        } else {
-            // For non-iOS 13+ browsers
-            setPermissionGranted(true);
         }
     };
     
     useEffect(() => {
-        if (isOpen && location) {
+        if (isOpen && location && (location.latitude !== 0 || location.longitude !== 0)) {
             fetchQiblaDirection(location.latitude, location.longitude);
+        } else if (isOpen) {
+             setLoading(true);
+             // Timeout to stop loading state if location takes too long
+             const timer = setTimeout(() => {
+                 if (location.latitude === 0 && location.longitude === 0) {
+                     setError("Menunggu lokasi GPS...");
+                     setLoading(false);
+                 }
+             }, 5000);
+             return () => clearTimeout(timer);
         }
     }, [isOpen, location]);
 
@@ -64,14 +83,20 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
 
         const handleOrientation = (event: DeviceOrientationEvent) => {
             let heading = event.alpha;
-            // For iOS
+            // iOS specific handling
             if (typeof (event as any).webkitCompassHeading !== 'undefined') {
                 heading = (event as any).webkitCompassHeading;
             }
+            
             if (heading !== null) {
-                setCompassHeading(heading);
-            } else {
-                 setError('Tidak dapat membaca data kompas dari perangkat.');
+                // Smoothing factor
+                setCompassHeading(prev => {
+                    const diff = heading! - prev;
+                    // Handle wrap-around 0/360
+                    if (diff > 180) return prev + (diff - 360) * 0.1;
+                    if (diff < -180) return prev + (diff + 360) * 0.1;
+                    return prev + diff * 0.1;
+                });
             }
         };
 
@@ -81,70 +106,138 @@ export const QiblaCompass: React.FC<QiblaCompassProps> = ({ isOpen, onClose, loc
     
     if (!isOpen) return null;
 
-    const needleRotation = 360 - compassHeading + qiblaDirection;
+    // Calculate rotation:
+    // We rotate the COMPASS DISK opposite to the heading so "North" on disk points North.
+    // The Qibla Marker is fixed on the disk at the Qibla Angle.
+    const dialRotation = -compassHeading;
 
     const openMap = () => {
-        if (location) {
-            // Kaaba coordinates: 21.4225° N, 39.8262° E
-            const kaabaLat = 21.422487;
-            const kaabaLon = 39.826206;
-            const url = `https://www.google.com/maps/dir/?api=1&origin=${location.latitude},${location.longitude}&destination=${kaabaLat},${kaabaLon}`;
-            window.open(url, '_blank');
-        } else {
-            setError("Lokasi Anda tidak tersedia untuk menampilkan peta.");
-        }
+        const lat = location?.latitude || 0;
+        const lon = location?.longitude || 0;
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=21.422487,39.826206&travelmode=driving`;
+        window.open(url, '_blank');
     };
 
-    // Explicit background to avoid transparency issues
-    const isLightTheme = document.body.className.includes('light');
-    const bgColor = isLightTheme ? 'bg-white' : 'bg-[#002b25]';
-    const textColor = isLightTheme ? 'text-gray-900' : 'text-white';
-
-    const renderContent = () => {
-        if (!permissionGranted) {
-            return (
-                 <div className="text-center">
-                    <p className="mb-4">Untuk menggunakan kompas, kami memerlukan izin untuk mengakses sensor orientasi perangkat Anda.</p>
-                    <button onClick={handleRequestPermission} className="w-full p-2 bg-cyan-600 rounded neon-button text-white">
-                        Berikan Izin
-                    </button>
-                 </div>
-            );
-        }
-        
-        return (
-            <div className="flex flex-col items-center justify-center">
-                <div className="relative w-64 h-64">
-                    {/* Compass Rose - Styled with rounded-full and neon effect */}
-                    <div className="w-full h-full rounded-full shadow-[0_0_15px_var(--border-color),inset_0_0_10px_var(--border-color)] flex items-center justify-center bg-transparent overflow-hidden">
-                        <img src="https://raw.githubusercontent.com/vandratop/Yuk/e4e4a8572bc82f134d2e62e24331d5d915edc3a4/Kabah_lingkar_NESW.png?raw=true" alt="Compass" className="w-full h-full object-cover opacity-90 mix-blend-screen" />
-                    </div>
-
-                    {/* Qibla Needle */}
-                    <div className="absolute inset-0 flex justify-center items-center transition-transform duration-500" style={{ transform: `rotate(${needleRotation}deg)`}}>
-                         <img src="https://raw.githubusercontent.com/vandratop/Yuk/b7eca3cfcc1e3a41fba1b96e4c9fcb7b4edbf1d2/jarumredslvkpms.png?raw=true" alt="Qibla direction" className="h-full" style={{filter: 'drop-shadow(0 0 5px #fff)'}}/>
-                    </div>
-                </div>
-                <div className="mt-4 text-center">
-                    <p className="font-bold text-lg neon-text">Arah Kiblat</p>
-                    <p className="font-clock text-2xl">{qiblaDirection.toFixed(2)}°</p>
-                    <button onClick={openMap} className="mt-3 inline-flex items-center gap-2 text-sm px-4 py-2 bg-gray-600 rounded-md neon-button text-white">
-                        <MapIcon className="w-4 h-4"/>
-                        Tampilkan di Peta
-                    </button>
-                    <p className="text-xs text-gray-400 mt-4">Untuk menampilkan arah Kiblat yang akurat, pastikan meletakkan device di permukaan (alas) yang rata, tidak bergelombang, posisi diam tidak bergerak, tidak bergetar. Pastikan ujung jarum jam warna silver bergerak (berputar) mencari arah Kiblat. Jika jarum kompas tidak berfungsi atau tidak akurat, silahkan refresh (close) ulangi kembali</p>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="fixed inset-0 bg-black/80 flex justify-center pt-28 sm:pt-36 z-50 fade-in overflow-y-auto" onClick={onClose}>
-            <div className={`main-container cyber-border rounded-lg p-6 w-full max-w-sm relative mb-8 ${bgColor} ${textColor}`} onClick={(e) => e.stopPropagation()}>
-                <button onClick={onClose} className="absolute top-2 right-2 p-1"><CloseIcon /></button>
-                <h3 className="font-bold text-lg mb-4 neon-text text-center">Kompas Kiblat</h3>
-                {error && <p className="text-red-400 text-sm text-center mb-2">{error}</p>}
-                {renderContent()}
+        <div className="fixed inset-0 z-[60] flex flex-col bg-[#002b25] text-white font-jannah animate-fade-in h-[100dvh]">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 bg-[#00594C] shadow-lg z-20 shrink-0">
+                <button onClick={onClose} className="p-2 rounded-full hover:bg-black/20 transition-colors flex items-center gap-2">
+                    <ChevronLeftIcon className="w-6 h-6" />
+                    <span className="hidden sm:inline font-bold">Kembali</span>
+                </button>
+                <h2 className="text-lg font-bold tracking-wider font-amiri">Arah Kiblat</h2>
+                <div className="w-10"></div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 relative flex flex-col items-center justify-center p-4 overflow-hidden">
+                
+                {/* Background Decor */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" 
+                     style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/arabesque.png')` }}>
+                </div>
+
+                {loading ? (
+                    <div className="flex flex-col items-center animate-pulse space-y-4">
+                        <div className="w-40 h-40 rounded-full border-4 border-[#00ffdf]/30 bg-[#00352e]"></div>
+                        <p className="text-cyan-400">Mencari lokasi & data kiblat...</p>
+                    </div>
+                ) : !permissionGranted ? (
+                    <div className="text-center px-6 max-w-sm">
+                        <div className="w-20 h-20 bg-cyan-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <MapIcon className="w-10 h-10 text-cyan-400" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-3">Izin Sensor Diperlukan</h3>
+                        <p className="text-sm text-gray-300 mb-6">Aplikasi memerlukan izin akses sensor kompas untuk menunjukkan arah Ka'bah secara real-time.</p>
+                        <button onClick={handleRequestPermission} className="w-full py-3 bg-[#00ffdf] hover:bg-cyan-400 text-[#002b25] rounded-xl font-bold shadow-lg transition-transform active:scale-95">
+                            Berikan Izin Akses
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        {/* Status Text */}
+                        <div className="text-center mb-8 z-10 relative">
+                            <p className="text-xs text-gray-400 uppercase tracking-widest mb-1">Arah Perangkat</p>
+                            <div className="text-4xl font-clock font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                                {Math.round(compassHeading)}°
+                            </div>
+                            <div className="mt-2 inline-block px-3 py-1 bg-[#00594C]/80 rounded-full border border-[#00ffdf]/30">
+                                <p className="text-xs text-[#00ffdf]">Target Kiblat: <b>{qiblaDirection.toFixed(1)}°</b></p>
+                            </div>
+                        </div>
+
+                        {/* Compass Visual */}
+                        <div className="relative w-[300px] h-[300px] sm:w-[350px] sm:h-[350px] flex items-center justify-center">
+                            
+                            {/* Outer Static Ring */}
+                            <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#00ffdf]/20"></div>
+                            
+                            {/* Rotating Dial */}
+                            <div 
+                                className="w-full h-full rounded-full border-4 border-[#00ffdf]/50 bg-black/40 backdrop-blur-sm shadow-[0_0_50px_rgba(0,255,223,0.1)] relative transition-transform duration-300 ease-out will-change-transform"
+                                style={{ transform: `rotate(${dialRotation}deg)` }}
+                            >
+                                {/* North Marker */}
+                                <div className="absolute top-2 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                                    <span className="text-red-500 font-bold text-lg drop-shadow-md">N</span>
+                                    <div className="w-1 h-3 bg-red-500 rounded-full"></div>
+                                </div>
+
+                                {/* South/East/West Ticks */}
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-gray-500 font-bold text-xs">S</div>
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">E</div>
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">W</div>
+
+                                {/* Degree Ticks */}
+                                {[...Array(12)].map((_, i) => (
+                                    <div 
+                                        key={i} 
+                                        className="absolute top-0 left-1/2 w-0.5 h-2 bg-gray-600 origin-bottom"
+                                        style={{ transform: `rotate(${i * 30}deg) translateY(10px) translateX(-50%)`, transformOrigin: '50% 150px' }}
+                                    />
+                                ))}
+
+                                {/* THE KAABA MARKER (Fixed on the dial at Qibla Angle) */}
+                                <div 
+                                    className="absolute top-0 left-1/2 w-full h-full -translate-x-1/2 origin-center pointer-events-none"
+                                    style={{ transform: `rotate(${qiblaDirection}deg)` }}
+                                >
+                                    {/* Line to Kaaba */}
+                                    <div className="absolute top-4 left-1/2 w-0.5 h-[50%] bg-gradient-to-b from-[#00ffdf] to-transparent -translate-x-1/2"></div>
+                                    
+                                    {/* Icon */}
+                                    <div className="absolute top-6 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                                        <div className="relative">
+                                            <div className="absolute -inset-4 bg-[#00ffdf]/20 rounded-full blur-md animate-pulse"></div>
+                                            <span className="text-4xl relative z-10 drop-shadow-[0_0_5px_rgba(0,0,0,0.8)]">🕋</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Center User Point */}
+                            <div className="absolute w-4 h-4 bg-white rounded-full shadow-[0_0_15px_white] z-30 border-2 border-gray-300"></div>
+                            
+                            {/* Device Heading Indicator (Fixed Top) */}
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[15px] border-b-white z-40 filter drop-shadow-md"></div>
+                        </div>
+
+                        {/* Footer / Map Button */}
+                        <div className="mt-8 z-10 w-full max-w-xs">
+                            <button 
+                                onClick={openMap}
+                                className="w-full flex items-center justify-center gap-2 py-3 bg-[#00594C]/80 hover:bg-[#00594C] border border-[#00ffdf]/30 rounded-xl transition-all active:scale-95 text-sm font-bold backdrop-blur-md text-[#00ffdf]"
+                            >
+                                <MapIcon className="w-5 h-5"/>
+                                Buka di Google Maps
+                            </button>
+                            <p className="text-[10px] text-center text-gray-400 mt-2 italic">
+                                *Pastikan GPS aktif dan jauhkan perangkat dari magnet.
+                            </p>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
