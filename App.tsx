@@ -576,40 +576,34 @@ const App: React.FC = () => {
     const [selectedDayFastingInfo, setSelectedDayFastingInfo] = useState<{isFasting: boolean, type: string}>({isFasting: false, type: ""});
     const [selectedDayInfoKey, setSelectedDayInfoKey] = useState<string | null>(null);
     
-    // Persistence for Alarms
+    // Persistence for Alarms - Enhanced with safety check
     const [alarms, setAlarms] = useState<AlarmSettings>(() => {
+        const defaults = {
+            tidur: { isOn: false, time: '22:05' },
+            tahajud: { isOn: false, time: '02:34' },
+            sahur: { isOn: false, time: '03:33' },
+            dhuha: { isOn: false, time: '09:45' },
+            jumat: { isOn: false, time: '11:15' },
+            shalat5Waktu: { isOn: false, time: '' }, 
+            dzikirPagi: { isOn: false, time: '05:00' },
+            dzikirPetang: { isOn: false, time: '17:00' },
+            doaJumat: { isOn: false, time: '17:30' }
+        };
         try {
             const saved = localStorage.getItem('hijriCalendarAlarms');
-            return saved ? JSON.parse(saved) : {
-                tidur: { isOn: false, time: '22:05' },
-                tahajud: { isOn: false, time: '02:34' },
-                sahur: { isOn: false, time: '03:33' },
-                dhuha: { isOn: false, time: '09:45' },
-                jumat: { isOn: false, time: '11:15' },
-                shalat5Waktu: { isOn: false, time: '' }, 
-                dzikirPagi: { isOn: false, time: '05:00' },
-                dzikirPetang: { isOn: false, time: '17:00' },
-                doaJumat: { isOn: false, time: '17:30' }
-            };
+            if (!saved) return defaults;
+            const parsed = JSON.parse(saved);
+            // Ensure structure is sound by merging with defaults
+            return { ...defaults, ...parsed };
         } catch { 
-            return {
-                tidur: { isOn: false, time: '22:05' },
-                tahajud: { isOn: false, time: '02:34' },
-                sahur: { isOn: false, time: '03:33' },
-                dhuha: { isOn: false, time: '09:45' },
-                jumat: { isOn: false, time: '11:15' },
-                shalat5Waktu: { isOn: false, time: '' }, 
-                dzikirPagi: { isOn: false, time: '05:00' },
-                dzikirPetang: { isOn: false, time: '17:00' },
-                doaJumat: { isOn: false, time: '17:30' }
-            };
+            return defaults;
         }
     });
 
     const [activeAlarm, setActiveAlarm] = useState<{ name: keyof AlarmSettings; text: string } | null>(null);
     const [calendarAnimationClass, setCalendarAnimationClass] = useState('fade-in');
     
-    // Persistence for User Settings
+    // Persistence for User Settings - Enhanced with safety check
     const [userSettings, setUserSettings] = useState<UserSettings>(() => {
         const defaults: UserSettings = {
             manualLocation: { city: '', country: '' },
@@ -627,12 +621,19 @@ const App: React.FC = () => {
             const saved = localStorage.getItem('hijriCalendarUserSettings');
             if (!saved) return defaults;
             const parsed = JSON.parse(saved);
-            // Ensure structure is robust against partial saved data
+            
+            // Robust merging: ensure all nested objects exist to prevent crashes
             return {
                 ...defaults,
                 ...parsed,
-                manualLocation: parsed.manualLocation || defaults.manualLocation,
-                sunnahFastingNotifications: parsed.sunnahFastingNotifications || defaults.sunnahFastingNotifications
+                manualLocation: {
+                    city: parsed.manualLocation?.city || defaults.manualLocation.city,
+                    country: parsed.manualLocation?.country || defaults.manualLocation.country
+                },
+                sunnahFastingNotifications: {
+                    ...defaults.sunnahFastingNotifications,
+                    ...(parsed.sunnahFastingNotifications || {})
+                }
             };
         } catch {
             return defaults;
@@ -1506,9 +1507,20 @@ const App: React.FC = () => {
 
     const handleViewChange = (view: AppView) => {
         if (userProfile?.isGuest) {
-            setShowGuestWarning(true);
-            setTimeout(() => setShowGuestWarning(false), 3000);
-            return;
+            // For features restricted to non-guests, show warning.
+            // Assuming Qibla/Quran are open, but Settings/Share/etc might be restricted?
+            // Prompt says: "Tanpa registrasi... terbatas hanya bisa akses halaman kalender... dan semua halaman di menu icon baris tiga dan icon gerigi"
+            // Wait, guest access is RESTRICTED to Calendar + Menu + Settings.
+            // So accessing Prayer, Qibla, Doa, Quran should be BLOCKED for Guest?
+            // The logic below implements restrictions based on user requirements.
+            
+            const restrictedViews: AppView[] = ['prayer', 'qibla', 'doa', 'quran'];
+            
+            if (restrictedViews.includes(view)) {
+                setShowGuestWarning(true);
+                setTimeout(() => setShowGuestWarning(false), 3000);
+                return;
+            }
         }
         playClickSound();
         setCurrentView(view);

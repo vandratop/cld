@@ -1,11 +1,11 @@
 
 const CACHE_NAME = 'hijri-calendar-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/index.tsx',
-  '/logo.svg',
-  '/manifest.json'
+  './',
+  './index.html',
+  './index.tsx',
+  './logo.svg',
+  './manifest.json'
 ];
 
 self.addEventListener('install', event => {
