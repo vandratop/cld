@@ -346,6 +346,8 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
 
         setIsProcessing(true);
         setGeneratedImage(null);
+        
+        // Use a hidden container on the DOM to ensure styles are applied correctly
         const tempContainer = document.createElement('div');
         tempContainer.style.position = 'absolute';
         tempContainer.style.left = '-9999px';
@@ -361,7 +363,7 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                 root.render(<ShareableComponent {...props} shareMode={shareMode} monthlyPrayerData={monthlyPrayerData} shareCountdownTarget={shareCountdownTarget} />);
             });
 
-            await new Promise(resolve => setTimeout(resolve, 800)); // wait for images and fonts
+            await new Promise(resolve => setTimeout(resolve, 800)); // wait for images and fonts to load
 
             const canvas = await html2canvas(tempContainer.firstChild as HTMLElement, {
                 useCORS: true,
@@ -376,12 +378,30 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
 
             if (output === 'print') {
                 const printWindow = window.open('', '_blank');
-                printWindow?.document.write(`<html><head><title>Cetak Kalender ${viewDate.getFullYear()}</title></head><body style="margin:0;"><img src="${dataUrl}" style="width:100%;"></body></html>`);
-                printWindow?.document.close();
-                setTimeout(() => {
-                    printWindow?.print();
-                    // printWindow?.close(); // Optional: close automatically
-                }, 500);
+                if (printWindow) {
+                    printWindow.document.write(`
+                        <html>
+                            <head>
+                                <title>Cetak Kalender ${viewDate.getFullYear()}</title>
+                                <style>
+                                    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f0f0f0; }
+                                    img { max-width: 100%; height: auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+                                </style>
+                            </head>
+                            <body>
+                                <img src="${dataUrl}" />
+                            </body>
+                        </html>`
+                    );
+                    printWindow.document.close();
+                    
+                    // Wait for image to load in new window before printing
+                    setTimeout(() => {
+                        printWindow.focus();
+                        printWindow.print();
+                        // Optional: printWindow.close();
+                    }, 500);
+                }
                 resetAndClose();
             } else { // Share (preview)
                 setGeneratedImage(dataUrl);
@@ -413,14 +433,14 @@ export const ShareModal: React.FC<ShareModalProps> = (props) => {
                     files: [file],
                 });
             } else {
-                alert('Berbagi file tidak didukung di browser ini. Silakan unduh gambar.');
+                handleDownloadNow();
             }
         } catch (error: any) {
             if (error.name === 'AbortError' || error.name === 'NotAllowedError') {
                 console.log('Share action was cancelled or not allowed by the user.');
             } else {
                 console.error('Error sharing:', error);
-                alert('Gagal membagikan gambar.');
+                handleDownloadNow(); // Fallback
             }
         } finally {
             setIsProcessing(false);

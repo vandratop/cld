@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchSurahs, fetchSurahDetails, fetchQuranEditions, fetchQuranMeta, fetchTafsir, QuranEdition } from '../services/quranService';
+import { fetchSurahs, fetchSurahDetails, fetchQuranEditions, fetchQuranMeta, fetchTafsir, fetchJuzDetails, QuranEdition } from '../services/quranService';
 import { Surah, Ayah } from '../types';
 import { ChevronLeftIcon, ChevronRightIcon, SearchIcon, VolumeUpIcon, CloseIcon, ShareIcon, TafsirIcon, MetadataIcon } from './Icons';
 
@@ -12,15 +12,17 @@ interface QuranPlayerProps {
 }
 
 export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
+    const [viewMode, setViewMode] = useState<'surah' | 'juz'>('surah');
     const [surahs, setSurahs] = useState<Surah[]>([]);
     const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
+    const [selectedJuz, setSelectedJuz] = useState<number | null>(null);
     const [ayahs, setAyahs] = useState<Ayah[]>([]);
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
-    const [playingAyah, setPlayingAyah] = useState<number | null>(null);
+    const [playingAyah, setPlayingAyah] = useState<number | null>(null); // Stores Ayah ID
     const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
     
     // Translation & Edition State
@@ -30,7 +32,7 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
     const [showMetaModal, setShowMetaModal] = useState(false);
     
     // Tafsir & Interaction
-    const [activeTafsirAyah, setActiveTafsirAyah] = useState<{ numberInSurah: number, text: string } | null>(null);
+    const [activeTafsirAyah, setActiveTafsirAyah] = useState<{ numberInSurah: number, text: string, surah: number } | null>(null);
     
     const ayahsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +64,9 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
 
     const handleSurahSelect = async (surah: Surah) => {
         if (selectedSurah?.number === surah.number) return;
+        stopAudio();
         setSelectedSurah(surah);
+        setSelectedJuz(null);
         setLoading(true);
         setError(null);
         setAyahs([]);
@@ -80,34 +84,83 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
         }
     };
 
+    const handleJuzSelect = async (juzNumber: number) => {
+        if (selectedJuz === juzNumber) return;
+        stopAudio();
+        setSelectedJuz(juzNumber);
+        setSelectedSurah(null);
+        setLoading(true);
+        setError(null);
+        setAyahs([]);
+        setActiveTafsirAyah(null);
+
+        try {
+            const data = await fetchJuzDetails(juzNumber, selectedEdition);
+            setAyahs(data);
+        } catch (err) {
+            console.error(err);
+            setError("Gagal memuat Juz. Silakan coba lagi.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleEditionChange = async (newEdition: string) => {
         setSelectedEdition(newEdition);
-        if (selectedSurah) {
-            setLoading(true);
-            try {
-                const data = await fetchSurahDetails(selectedSurah.number, newEdition);
-                setAyahs(data);
-            } catch(e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
+        setLoading(true);
+        try {
+            let data: Ayah[] = [];
+            if (selectedSurah) {
+                data = await fetchSurahDetails(selectedSurah.number, newEdition);
+            } else if (selectedJuz) {
+                data = await fetchJuzDetails(selectedJuz, newEdition);
             }
+            if (data.length > 0) setAyahs(data);
+        } catch(e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
         }
     };
 
     const handlePlayAudio = (ayah: Ayah) => {
-        if (currentAudio) currentAudio.pause();
+        // Ensure any current audio is stopped and cleared
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+        }
+        
+        // Simple and robust audio playback
         const audio = new Audio(ayah.audio);
+        audio.preload = 'auto';
         audio.playbackRate = playbackSpeed;
-        audio.onended = () => setPlayingAyah(null);
-        audio.play().catch(e => console.error("Audio play error:", e));
+        
+        audio.onended = () => {
+            setPlayingAyah(null);
+            setCurrentAudio(null);
+        };
+        
+        audio.onerror = (e) => {
+            console.error("Audio playback error", e);
+            setPlayingAyah(null);
+            alert("Gagal memutar audio ayat ini.");
+        };
+
+        // Set state first to update UI
         setCurrentAudio(audio);
-        setPlayingAyah(ayah.numberInSurah);
+        setPlayingAyah(ayah.number); // Use global number for unique ID in Juz view
+
+        audio.play().catch(e => {
+            console.error("Play prevented", e);
+            setPlayingAyah(null);
+        });
     };
 
     const handleTTS = (text: string) => {
-        if (currentAudio) currentAudio.pause();
-        setPlayingAyah(null);
+        if (currentAudio) {
+            currentAudio.pause();
+            setPlayingAyah(null);
+        }
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = selectedEdition.includes('id') ? 'id-ID' : (selectedEdition.includes('en') ? 'en-US' : 'ar-SA');
         utterance.rate = playbackSpeed;
@@ -115,23 +168,20 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
         window.speechSynthesis.speak(utterance);
     };
 
-    const handleShowTafsir = async (ayah: Ayah) => {
-        if (!selectedSurah) return;
+    const handleShowTafsir = async (ayah: Ayah, surahNum: number) => {
         try {
-            // Fetch Tafsir Al-Jalalayn
-            const tafsirText = await fetchTafsir(selectedSurah.number, ayah.numberInSurah);
-            setActiveTafsirAyah({ numberInSurah: ayah.numberInSurah, text: tafsirText });
+            const tafsirText = await fetchTafsir(surahNum, ayah.numberInSurah);
+            setActiveTafsirAyah({ numberInSurah: ayah.numberInSurah, text: tafsirText, surah: surahNum });
         } catch(e) {
             alert("Gagal memuat tafsir.");
         }
     };
 
-    const handleShareAyah = async (ayah: Ayah, mode: 'text' | 'image') => {
-        if (!selectedSurah) return;
+    const handleShareAyah = async (ayah: Ayah, surahName: string, mode: 'text' | 'image') => {
         
         const ayahText = ayah.text;
         const transText = ayah.translation || "";
-        const shareTitle = `QS ${selectedSurah.englishName} : ${ayah.numberInSurah}`;
+        const shareTitle = `QS ${surahName} : ${ayah.numberInSurah}`;
         const watermark = "\n\nTe_eR Inovative";
 
         if (mode === 'text') {
@@ -174,7 +224,7 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `ayat-${selectedSurah.number}-${ayah.numberInSurah}.jpg`;
+                    a.download = `ayat-${shareTitle.replace(/[: ]/g, '-')}.jpg`;
                     a.click();
                 }
             } catch(e) {
@@ -210,6 +260,13 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
         return 0;
     });
 
+    const getSurahInfo = (ayah: any) => {
+        if (selectedSurah) return selectedSurah;
+        // For Juz view, find Surah from meta using ayah.surah.number if available in Ayah object from Juz endpoint
+        // The Juz endpoint returns Ayah objects that contain `surah` object with info.
+        return ayah.surah;
+    }
+
     return (
         <div className="fixed inset-0 z-[60] flex flex-col bg-[#002b25] text-white font-jannah animate-fade-in h-[100dvh]">
             <div className="p-4 border-b border-[#00ffdf]/30 flex justify-between items-center bg-[#00594C] shadow-md shrink-0 z-20">
@@ -244,22 +301,40 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
 
                 <div className={`
                     w-full md:w-1/3 lg:w-1/4 border-r border-[#00ffdf]/20 flex flex-col bg-[#002b25] transition-transform duration-300 absolute inset-0 md:relative z-10
-                    ${selectedSurah ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
+                    ${(selectedSurah || selectedJuz) ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
                 `}>
                     <div className="p-4 border-b border-[#00ffdf]/20 bg-[#00352e] space-y-3">
-                        <div className="relative">
-                            <input 
-                                type="text" 
-                                placeholder="Cari Surah..." 
-                                value={!selectedSurah ? searchQuery : ''} 
-                                onChange={(e) => !selectedSurah && setSearchQuery(e.target.value)}
-                                className="w-full bg-black/30 border border-[#00ffdf]/30 rounded-full py-2.5 px-4 pl-10 text-sm focus:outline-none focus:border-[#00ffdf] text-white"
-                                disabled={!!selectedSurah && window.innerWidth < 768} 
-                            />
-                            <SearchIcon className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                        {/* Tab Switcher */}
+                        <div className="flex rounded-lg bg-black/30 p-1 mb-2">
+                            <button 
+                                onClick={() => { setViewMode('surah'); setSearchQuery(''); }} 
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewMode === 'surah' ? 'bg-[#00ffdf] text-[#002b25]' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Surah
+                            </button>
+                            <button 
+                                onClick={() => { setViewMode('juz'); setSearchQuery(''); }} 
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${viewMode === 'juz' ? 'bg-[#00ffdf] text-[#002b25]' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                Juz
+                            </button>
                         </div>
+
+                        {viewMode === 'surah' && (
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    placeholder="Cari Surah..." 
+                                    value={!(selectedSurah || selectedJuz) ? searchQuery : ''} 
+                                    onChange={(e) => !(selectedSurah || selectedJuz) && setSearchQuery(e.target.value)}
+                                    className="w-full bg-black/30 border border-[#00ffdf]/30 rounded-full py-2.5 px-4 pl-10 text-sm focus:outline-none focus:border-[#00ffdf] text-white"
+                                    disabled={!!(selectedSurah || selectedJuz) && window.innerWidth < 768} 
+                                />
+                                <SearchIcon className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                            </div>
+                        )}
                         
-                        {!selectedSurah && (
+                        {!(selectedSurah || selectedJuz) && (
                             <div className="flex gap-2">
                                 <select 
                                     value={selectedEdition} 
@@ -284,7 +359,7 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                             <div className="p-4 space-y-3">
                                 {[...Array(8)].map((_, i) => <div key={i} className="h-16 bg-white/5 rounded-lg animate-pulse"></div>)}
                             </div>
-                        ) : (
+                        ) : viewMode === 'surah' ? (
                             filteredSurahs.map(surah => (
                                 <button 
                                     key={surah.number}
@@ -308,37 +383,55 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                                     </div>
                                 </button>
                             ))
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2 p-2">
+                                {Array.from({length: 30}, (_, i) => i + 1).map(juzNum => (
+                                    <button
+                                        key={juzNum}
+                                        onClick={() => handleJuzSelect(juzNum)}
+                                        className={`p-3 rounded-lg border text-center transition-all ${selectedJuz === juzNum ? 'bg-[#00ffdf] text-[#002b25] border-[#00ffdf] font-bold' : 'bg-black/30 border-[#00ffdf]/20 hover:border-[#00ffdf]/50'}`}
+                                    >
+                                        Juz {juzNum}
+                                    </button>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
 
                 <div className={`
                     w-full md:w-2/3 lg:w-3/4 flex flex-col bg-[#00352e] absolute inset-0 md:relative z-10 transition-transform duration-300
-                    ${selectedSurah ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+                    ${(selectedSurah || selectedJuz) ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
                 `}>
-                    {selectedSurah ? (
+                    {(selectedSurah || selectedJuz) ? (
                         <>
                             <div className="p-3 border-b border-[#00ffdf]/20 flex flex-col sm:flex-row justify-between items-center gap-3 bg-[#004d40] shadow-sm shrink-0">
                                 <div className="flex items-center w-full sm:w-auto gap-3">
-                                    <button onClick={() => setSelectedSurah(null)} className="md:hidden p-2 bg-black/20 rounded-full text-[#00ffdf]">
+                                    <button onClick={() => { setSelectedSurah(null); setSelectedJuz(null); }} className="md:hidden p-2 bg-black/20 rounded-full text-[#00ffdf]">
                                         <ChevronLeftIcon className="w-5 h-5"/>
                                     </button>
                                     <div className="flex-1">
-                                        <h3 className="font-bold text-lg leading-tight text-white">{selectedSurah.englishName}</h3>
-                                        <p className="text-xs text-[#00ffdf] font-amiri">{selectedSurah.name} • {selectedSurah.numberOfAyahs} Ayat</p>
+                                        <h3 className="font-bold text-lg leading-tight text-white">
+                                            {selectedSurah ? selectedSurah.englishName : `Juz ${selectedJuz}`}
+                                        </h3>
+                                        <p className="text-xs text-[#00ffdf] font-amiri">
+                                            {selectedSurah ? `${selectedSurah.name} • ${selectedSurah.numberOfAyahs} Ayat` : 'Al-Qur\'an Al-Kareem'}
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                                    <div className="relative flex-1 sm:w-48">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Cari terjemahan..." 
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full bg-black/30 border border-[#00ffdf]/30 rounded-full py-1.5 px-3 pl-8 text-xs focus:outline-none focus:border-[#00ffdf] text-white"
-                                        />
-                                        <SearchIcon className="w-3 h-3 absolute left-2.5 top-2 text-gray-400" />
-                                    </div>
+                                    {selectedSurah && (
+                                        <div className="relative flex-1 sm:w-48">
+                                            <input 
+                                                type="text" 
+                                                placeholder="Cari terjemahan..." 
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="w-full bg-black/30 border border-[#00ffdf]/30 rounded-full py-1.5 px-3 pl-8 text-xs focus:outline-none focus:border-[#00ffdf] text-white"
+                                            />
+                                            <SearchIcon className="w-3 h-3 absolute left-2.5 top-2 text-gray-400" />
+                                        </div>
+                                    )}
                                     <select 
                                         value={playbackSpeed} 
                                         onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
@@ -360,22 +453,25 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                                 ) : error ? (
                                     <div className="text-center pt-20">
                                         <p className="text-red-400 mb-4">{error}</p>
-                                        <button onClick={() => handleSurahSelect(selectedSurah)} className="px-4 py-2 bg-[#00ffdf] text-[#002b25] rounded font-bold">Muat Ulang</button>
+                                        <button onClick={() => selectedSurah ? handleSurahSelect(selectedSurah) : handleJuzSelect(selectedJuz!)} className="px-4 py-2 bg-[#00ffdf] text-[#002b25] rounded font-bold">Muat Ulang</button>
                                     </div>
                                 ) : (
                                     <>
-                                        {selectedSurah.number !== 9 && (
+                                        {selectedSurah && selectedSurah.number !== 9 && selectedSurah.number !== 1 && (
                                             <div className="text-center py-8 font-amiri text-3xl sm:text-4xl text-[#00ffdf] bg-[#002b25]/50 rounded-2xl border border-[#00ffdf]/20 mb-6 shadow-inner select-none">
                                                 بِسْمِ ٱللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ
                                             </div>
                                         )}
                                         
                                         {filteredAyahs.map((ayah, index) => {
+                                            const ayahSurah = getSurahInfo(ayah);
                                             let displayText = ayah.text;
-                                            if (ayah.numberInSurah === 1 && selectedSurah.number !== 1 && selectedSurah.number !== 9) {
+                                            // Handle Bismillah for Surah view (remove if inside text for non-Fatihah/Taubah)
+                                            if (selectedSurah && ayah.numberInSurah === 1 && selectedSurah.number !== 1 && selectedSurah.number !== 9) {
                                                 displayText = displayText.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, '').replace(/^بِسْمِ ٱللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ\s*/, '');
                                             }
-                                            const isPlaying = playingAyah === ayah.numberInSurah;
+                                            
+                                            const isPlaying = playingAyah === ayah.number; // Use global number
 
                                             return (
                                                 <div 
@@ -386,7 +482,7 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                                                     {/* Top Right Action Buttons */}
                                                     <div className="absolute top-4 right-4 flex space-x-2">
                                                         <button 
-                                                            onClick={() => handleShareAyah(ayah, 'text')}
+                                                            onClick={() => handleShareAyah(ayah, ayahSurah?.englishName || '', 'text')}
                                                             className="p-1.5 rounded-full bg-black/30 text-gray-400 hover:text-[#00ffdf] hover:bg-black/50 transition-colors"
                                                             title="Share Text/Image"
                                                         >
@@ -394,13 +490,21 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                                                         </button>
                                                     </div>
 
-                                                    <div className="flex justify-between items-start mb-6 pr-10">
-                                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 ${isPlaying ? 'bg-[#00ffdf] border-white text-[#002b25]' : 'bg-[#00594C] border-[#00ffdf]/30 text-white'}`}>
-                                                            {ayah.numberInSurah}
+                                                    <div className="flex justify-between items-start mb-6 pr-10 flex-wrap gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 ${isPlaying ? 'bg-[#00ffdf] border-white text-[#002b25]' : 'bg-[#00594C] border-[#00ffdf]/30 text-white'}`}>
+                                                                {ayah.numberInSurah}
+                                                            </div>
+                                                            {/* If in Juz mode, show Surah Name */}
+                                                            {selectedJuz && ayahSurah && (
+                                                                <span className="text-xs bg-[#00ffdf]/10 text-[#00ffdf] px-2 py-1 rounded border border-[#00ffdf]/30">
+                                                                    {ayahSurah.englishName}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <div className="flex gap-2">
                                                             <button 
-                                                                onClick={() => handleShowTafsir(ayah)} 
+                                                                onClick={() => handleShowTafsir(ayah, ayahSurah.number)} 
                                                                 className="p-2 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white" 
                                                                 title="Baca Tafsir (AR)"
                                                             >
@@ -432,7 +536,7 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                                                     </div>
 
                                                     {/* Tafsir Block */}
-                                                    {activeTafsirAyah?.numberInSurah === ayah.numberInSurah && (
+                                                    {activeTafsirAyah?.numberInSurah === ayah.numberInSurah && activeTafsirAyah?.surah === ayahSurah.number && (
                                                         <div className="mt-4 p-4 bg-black/40 rounded-lg border border-[#00ffdf]/30 text-right animate-fade-in-up">
                                                             <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-2">
                                                                 <button onClick={() => setActiveTafsirAyah(null)} className="text-xs text-red-400">Tutup</button>
@@ -454,7 +558,7 @@ export const QuranPlayer: React.FC<QuranPlayerProps> = ({ onBack }) => {
                                 <span className="text-6xl">📖</span>
                             </div>
                             <h3 className="text-2xl font-bold font-amiri text-[#00ffdf]">Al-Qur'an Digital</h3>
-                            <p className="text-center max-w-xs">Silakan pilih Surah dari daftar di sebelah kiri untuk mulai membaca.</p>
+                            <p className="text-center max-w-xs">Silakan pilih Surah atau Juz dari daftar di sebelah kiri untuk mulai membaca.</p>
                         </div>
                     )}
                 </div>

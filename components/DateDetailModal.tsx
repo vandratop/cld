@@ -176,7 +176,7 @@ export const DateDetailModal: React.FC<DateDetailModalProps> = ({
             shareText += `\nCatatan (Hijriah):\n`;
             customHijriEvents.forEach(e => shareText += `- ${e.name}${e.isRecurring ? ' (Setiap Tahun)' : ''}\n`);
         }
-        shareText += '\nYuk Mari berbagi kebaikan. Dibagikan dari Digital Kalender Hijiriah | https://hijria.netlify.app';
+        shareText += '\nYuk Mari berbagi kebaikan. Dibagikan dari Digital Kalender Hijiriah | https://s.id/Hijria';
 
         try {
             if (navigator.share) {
@@ -199,7 +199,7 @@ export const DateDetailModal: React.FC<DateDetailModalProps> = ({
         const hijriDateStr = `${day.hijri.day} ${translateToIndonesian(day.hijri.month.en, 'hijri')} ${day.hijri.year} H`;
         const gregorianDateStr = `${day.gregorian.day} ${translateToIndonesian(day.gregorian.month.en, 'gregorian')} ${day.gregorian.year}`;
         const eventName = 'text' in event ? event.text : event.name;
-        const shareText = `Pengingat Acara:\n- ${eventName}\n\nTanggal: ${gregorianDateStr} / ${hijriDateStr}\n\nYuk Mari berbagi kebaikan. Dibagikan dari Digital Kalender Hijiriah | https://hijria.netlify.app`;
+        const shareText = `Pengingat Acara:\n- ${eventName}\n\nTanggal: ${gregorianDateStr} / ${hijriDateStr}\n\nYuk Mari berbagi kebaikan. Dibagikan dari Digital Kalender Hijiriah | https://s.id/Hijria`;
 
         try {
             if (navigator.share) {

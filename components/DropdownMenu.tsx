@@ -86,15 +86,15 @@ export const DropdownMenu: React.FC<DropdownMenuProps> = ({ isOpen, onClose, onA
                  <div className="border-t border-[var(--border-color)]/20 my-1"></div>
                  <li className="px-2 pt-1 pb-2 text-xs text-gray-400">Find us</li>
                  <li className="flex justify-around items-center px-2">
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="WhatsApp"><WhatsAppIcon className="w-6 h-6"/></a>
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="Instagram"><InstagramIcon className="w-6 h-6"/></a>
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="Facebook"><FacebookIcon className="w-6 h-6"/></a>
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="YouTube"><YouTubeIcon className="w-6 h-6"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="WhatsApp"><WhatsAppIcon className="w-6 h-6"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="Instagram"><InstagramIcon className="w-6 h-6"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="Facebook"><FacebookIcon className="w-6 h-6"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="YouTube"><YouTubeIcon className="w-6 h-6"/></a>
                  </li>
                   <li className="flex justify-around items-center px-2 mt-2">
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="Telegram"><TelegramIcon className="w-6 h-6"/></a>
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="TikTok"><TikTokIcon className="w-5 h-5"/></a>
-                    <a href="https://hijria.netlify.app" target="_blank" rel="noopener noreferrer" title="Website"><WebsiteIcon className="w-5 h-5"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="Telegram"><TelegramIcon className="w-6 h-6"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="TikTok"><TikTokIcon className="w-5 h-5"/></a>
+                    <a href="https://s.id/Hijria" target="_blank" rel="noopener noreferrer" title="Website"><WebsiteIcon className="w-5 h-5"/></a>
                  </li>
             </ul>
         </div>

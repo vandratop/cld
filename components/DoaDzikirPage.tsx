@@ -9,7 +9,7 @@ export const DoaDzikirPage: React.FC<{onBack: () => void}> = ({onBack}) => {
     ];
 
     const handleClick = (item: string) => {
-        alert(`Menu ${item} coming soon...`);
+        alert("under developments");
     };
 
     return (
