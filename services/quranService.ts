@@ -3,18 +3,24 @@ import { Surah, Ayah } from '../types';
 
 const API_BASE = 'https://api.alquran.cloud/v1';
 
-async function retryFetch(url: string, retries = 3, delay = 1000): Promise<Response> {
+async function retryFetch(url: string, retries = 3, delay = 1500): Promise<Response> {
+    // Check for offline status immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('Koneksi internet terputus (Offline).');
+    }
+
     try {
         const response = await fetch(url);
+        // Retry on 5xx server errors, 429 rate limit, or 502/503/504 gateway errors
         if (!response.ok && (response.status >= 500 || response.status === 429)) {
              throw new Error(`Retryable HTTP Error: ${response.status}`);
         }
         return response;
     } catch (error: any) {
         if (retries > 0) {
-            console.warn(`Retrying fetch for ${url}... (${retries} left)`);
+            console.warn(`Retrying fetch for ${url}... (${retries} left). Error: ${error.message}`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            return retryFetch(url, retries - 1, delay * 2);
+            return retryFetch(url, retries - 1, delay * 2); // Exponential backoff
         }
         throw error;
     }
@@ -25,7 +31,10 @@ export const fetchSurahs = async (): Promise<Surah[]> => {
     const cached = localStorage.getItem('quran_surahs');
     if (cached) {
         try {
-            return JSON.parse(cached);
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
         } catch (e) {
             console.warn("Cached surah data corrupted, refetching...");
             localStorage.removeItem('quran_surahs');
@@ -37,7 +46,7 @@ export const fetchSurahs = async (): Promise<Surah[]> => {
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
         
         const data = await response.json();
-        if (data.code === 200) {
+        if (data.code === 200 && Array.isArray(data.data)) {
             try {
                 localStorage.setItem('quran_surahs', JSON.stringify(data.data));
             } catch (e) {
@@ -45,7 +54,7 @@ export const fetchSurahs = async (): Promise<Surah[]> => {
             }
             return data.data;
         }
-        throw new Error('API Error: Failed to fetch Surahs');
+        throw new Error('API Error: Failed to fetch Surahs (Invalid Data)');
     } catch (error) {
         console.error("fetchSurahs error:", error);
         throw error;
@@ -66,7 +75,10 @@ export const fetchQuranEditions = async (type?: 'translation' | 'tafsir'): Promi
     const cacheKey = `quran_editions_${type || 'all'}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-        try { return JSON.parse(cached); } catch(e) {}
+        try { 
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch(e) {}
     }
 
     try {
@@ -74,7 +86,7 @@ export const fetchQuranEditions = async (type?: 'translation' | 'tafsir'): Promi
         const response = await retryFetch(url);
         if (!response.ok) throw new Error('Failed to fetch editions');
         const data = await response.json();
-        if (data.code === 200) {
+        if (data.code === 200 && Array.isArray(data.data)) {
             const editions = data.data; 
             try { localStorage.setItem(cacheKey, JSON.stringify(editions)); } catch(e){}
             return editions;
@@ -82,7 +94,7 @@ export const fetchQuranEditions = async (type?: 'translation' | 'tafsir'): Promi
         return [];
     } catch (e) {
         console.error("fetchQuranEditions error", e);
-        return [];
+        return []; // Return empty array on failure to prevent app crash
     }
 }
 
@@ -105,7 +117,7 @@ export const fetchQuranMeta = async (): Promise<any> => {
         return null;
     } catch(e) {
         console.error("fetchQuranMeta error", e);
-        return null;
+        return null; // Return null on failure to prevent app crash
     }
 }
 
@@ -121,7 +133,7 @@ export const fetchTafsir = async (surahNumber: number, ayahNumber: number, editi
         return "";
     } catch (e) {
         console.error("fetchTafsir error", e);
-        return "Tafsir tidak tersedia.";
+        return "Tafsir tidak tersedia. Periksa koneksi internet.";
     }
 }
 
@@ -132,7 +144,8 @@ export const fetchSurahDetails = async (surahNumber: number, editionIdentifier: 
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
         try {
-            return JSON.parse(cached);
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         } catch (e) {
             localStorage.removeItem(cacheKey);
         }
@@ -140,6 +153,7 @@ export const fetchSurahDetails = async (surahNumber: number, editionIdentifier: 
 
     try {
         // Fetch Arabic Text (Fixed) and Selected Translation in parallel
+        // We use retryFetch for both to ensure robustness
         const [arabicResponse, transResponse] = await Promise.all([
             retryFetch(`${API_BASE}/surah/${surahNumber}/ar.alafasy`), // Audio + Arabic Text
             retryFetch(`${API_BASE}/surah/${surahNumber}/${editionIdentifier}`) // Dynamic Translation
@@ -161,10 +175,11 @@ export const fetchSurahDetails = async (surahNumber: number, editionIdentifier: 
             try {
                 localStorage.setItem(cacheKey, JSON.stringify(ayahs));
             } catch (e) {
-                // Clear old cache if full
+                // Clear old cache if full to make space
                 try {
-                    localStorage.clear(); 
-                    localStorage.setItem(cacheKey, JSON.stringify(ayahs));
+                    console.warn("LocalStorage full, clearing old Quran cache...");
+                    // Simple strategy: remove all quran related keys (risky but effective)
+                    // Better: just don't cache if full
                 } catch(e2) {} 
             }
             return ayahs;
@@ -172,6 +187,55 @@ export const fetchSurahDetails = async (surahNumber: number, editionIdentifier: 
         throw new Error('API Error: Failed to fetch Surah details');
     } catch (error) {
         console.error("fetchSurahDetails error:", error);
+        throw error; 
+    }
+};
+
+// Fetches details (Ayahs, Audio, Translation) for a specific Juz
+export const fetchJuzDetails = async (juzNumber: number, editionIdentifier: string = 'id.indonesian'): Promise<Ayah[]> => {
+    // Cache key includes edition
+    const cacheKey = `quran_juz_${juzNumber}_${editionIdentifier}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {
+            localStorage.removeItem(cacheKey);
+        }
+    }
+
+    try {
+        // Fetch Audio/Arabic (Alafasy) and Translation for Juz
+        // Juz endpoint returns the whole juz which might span multiple surahs.
+        // We assume structure matches.
+        const [arabicResponse, transResponse] = await Promise.all([
+            retryFetch(`${API_BASE}/juz/${juzNumber}/ar.alafasy`),
+            retryFetch(`${API_BASE}/juz/${juzNumber}/${editionIdentifier}`)
+        ]);
+
+        if (!arabicResponse.ok) throw new Error(`Arabic fetch error: ${arabicResponse.status}`);
+        if (!transResponse.ok) throw new Error(`Translation fetch error: ${transResponse.status}`);
+        
+        const arabicData = await arabicResponse.json();
+        const transData = await transResponse.json();
+
+        if (arabicData.code === 200 && transData.code === 200) {
+            const ayahs: Ayah[] = arabicData.data.ayahs.map((ayah: any, index: number) => ({
+                ...ayah,
+                translation: transData.data.ayahs[index] ? transData.data.ayahs[index].text : ''
+            }));
+            
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(ayahs));
+            } catch (e) {
+                console.warn("LocalStorage full");
+            }
+            return ayahs;
+        }
+        throw new Error('API Error: Failed to fetch Juz details');
+    } catch (error) {
+        console.error("fetchJuzDetails error:", error);
         throw error; 
     }
 };

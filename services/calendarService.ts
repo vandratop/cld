@@ -3,18 +3,29 @@ import type { CalendarData, Day, CountdownTarget, HijriDate, PrayerTimes, UserSe
 import { CountdownEvent } from '../types';
 import { ALADHAN_API_BASE_URL } from '../constants';
 
-// Retry helper
+// Robust Retry helper
 async function retryFetch(url: string, retries = 3, delay = 1000): Promise<Response> {
+    // Check for offline status immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('Koneksi internet terputus (Offline).');
+    }
+
     try {
         const response = await fetch(url);
-        if (response.status === 503 || response.status === 504 || response.status === 500 || response.status === 502) {
-             throw new Error(`Service Unavailable: ${response.status}`);
+        // Retry on 5xx server errors, 429 rate limit, or 502/503/504 gateway errors
+        if (!response.ok && (response.status >= 500 || response.status === 429)) {
+             throw new Error(`Retryable HTTP Error: ${response.status}`);
         }
         return response;
     } catch (error: any) {
-        if (retries > 0) {
+        // Retry on network errors (TypeError) or the specific Server Errors we threw above
+        const isNetworkError = error.name === 'TypeError' || error.message === 'Failed to fetch';
+        const isRetryableError = error.message?.includes('Retryable HTTP Error');
+
+        if (retries > 0 && (isNetworkError || isRetryableError)) {
+            console.warn(`Retrying fetch for ${url}... (${retries} left). Error: ${error.message}`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            return retryFetch(url, retries - 1, delay * 2);
+            return retryFetch(url, retries - 1, delay * 2); // Exponential backoff
         }
         throw error;
     }
