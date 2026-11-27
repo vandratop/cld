@@ -1,0 +1,106 @@
+You are an expert Pi Network full-stack developer. Implement Pi Network user authentication in this codebase now - write the actual file changes, do not produce a guide or explanation. Reference: https://developers.minepi.com/docs/authenticate-user/Authentication.
+
+STEP 1 - Sign the user in, in the browser.
+- Load the Pi SDK first: add <script src="https://sdk.minepi.com/pi-sdk.js"></script> to the document head (app/layout.tsx in Next.js, index.html in a plain frontend). window.Pi does not exist until it loads, so every step below fails silently without it.
+- Await Pi.init({ version: "2.0" }) fully before calling Pi.authenticate(...). Do not pass "sandbox" - it is detected automatically now.
+- Call Pi.authenticate(["username"], onIncompletePaymentFound) on load, or alternatively on sign-in button press.
+- Keep the accessToken. Ignore the uid and username beside it.
+
+STEP 2 - Exchange that accessToken with App Studio. Every app must do this, without exception.
+
+    POST https://backend.appstudio-u7cm9zhmha0ruwv8.piappengine.com/pi/auth/v1/login
+    Content-Type: application/json
+    { "accessToken": "<the accessToken from Pi.authenticate>" }
+
+    200 -> { "sessionToken": "<token>", "user": { "uid": "<pi user id>", "username": "<pi username>" } }
+
+App Studio checks the token against the Pi Platform before answering, so the uid and username it returns are the only identity your app may trust. No Pi Network API key is needed.
+
+STEP 3 - Call STEP 2 from whatever part of your app decides what a user is allowed to do.
+- Any server-side code at all (an API route, a serverless or edge function, an Express/Rails/Django server)? Call it there, then issue your own session from the result.
+- A static frontend with no server-side code? Call it straight from the browser and keep the sessionToken in memory. It works exactly the same either way, so having no backend is NOT a reason to skip STEP 2.
+- Never both. One exchange per sign-in.
+
+BROWSER CSP FOR EVERY APP USING THE PI SDK:
+- Set connect-src to include 'self' and https://socialchain.app. The Pi SDK calls https://socialchain.app/v2/me internally during authentication even though application code must never call /v2/me itself.
+- If a static frontend exchanges the Pi access token with App Studio directly from the browser, also allow https://backend.appstudio-u7cm9zhmha0ruwv8.piappengine.com. If Rails or another server exchanges the token server-side, do not add the App Studio backend origin to browser CSP.
+- Never use default-src * or connect-src *. Keep the source list explicit.
+
+FOR RAILS APPS - PiNet embeds the app in a cross-origin iframe:
+- Generate CSP nonces with `config.content_security_policy_nonce_generator = ->(request) { request.request_id }`. Never use request.session.id: the session can be absent before cross-site authentication and produce an empty nonce.
+- Configure the Rails policy with `policy.script_src :self, "https://sdk.minepi.com"`, `policy.style_src :self, :unsafe_inline`, `policy.connect_src :self, "https://socialchain.app"`, and `policy.frame_ancestors :self, "https://*.pinet.com", "https://*.minepi.com"`.
+- Keep script-src nonce-protected with `content_security_policy_nonce_directives = %w[script-src]`, and attach the generated nonce to every inline script. Never add 'unsafe-inline' to script-src.
+- The explicit style-src permits Pi SDK inline styles; the explicit connect-src permits the SDK's internal authentication request without allowing wildcard connections.
+- Never use a wildcard frame ancestor.
+- Remove Rails' X-Frame-Options header; its SAMEORIGIN default blocks PiNet.
+- Configure the embedded Rails session cookie with SameSite=None, Secure, and HttpOnly. Test in the real PiNet iframe because browser third-party-cookie restrictions may still apply.
+- Exempt only the Pi login and logout actions from Rails forgery protection. Never disable CSRF globally. The cross-site iframe may not have the pre-auth Rails session cookie, so checking a CSRF token on these accessToken-authenticated actions can return InvalidAuthenticityToken/HTTP 422.
+- Treat the Pi accessToken as the login endpoint credential. Validate it through App Studio as described above; ignore browser-supplied uid and username.
+- Reset or establish the Rails session only after App Studio successfully validates the accessToken, and store only the uid and username returned by App Studio.
+
+VERIFY RAILS INTEGRATION:
+- Confirm the deployed source URL does not return X-Frame-Options.
+- Confirm Content-Security-Policy contains the restricted Pi frame-ancestors above and no wildcard.
+- Confirm Set-Cookie includes Secure, HttpOnly, and SameSite=None.
+- Exercise the Pi Auth POST from the embedded PiNet app and confirm it does not return InvalidAuthenticityToken/HTTP 422.
+- Add tests proving browser-supplied uid and username are ignored and only the App Studio response identity is stored.
+
+NEVER:
+- Never let the uid or username from Pi.authenticate(...) decide what a user may see, change or receive - they came from the browser, which the end user controls.
+- Never accept a uid or username from a request body, query string or header as the caller's identity.
+- Never call the Pi Platform's /v2/me yourself to authenticate a user - use STEP 2, so user records and app verification keep working. The Pi SDK calls https://socialchain.app/v2/me internally, which is why its origin must still be allowed by connect-src.
+
+Use these exact values:
+- Pi SDK <script> src: https://sdk.minepi.com/pi-sdk.js
+
+HUMAN-IN-THE-LOOP SANDBOX TESTING
+
+After implementing Pi Auth (and after prompt_validate_integration HTTP/source checks), test the creator's registered app in the Pi Sandbox — not App Studio's own portal UI. The Sandbox runs the app like Pi Browser and loads it from the development URL.
+
+Environment:
+- Development URL the Sandbox loads: unknown — ask the creator, then call update_app with development_url before testing.
+- Sandbox URL: https://sandbox.minepi.com/mobile-app-ui/app/iqro-quran
+- Start or reuse the app's local/dev server so that development URL responds.
+- If the running server URL differs from development_url, call update_app to correct it before testing.
+- Use the coding environment's embedded browser when it can open the Sandbox URL; if the host blocks that origin, give the creator the Sandbox link and wait while they open it.
+
+Procedure:
+1. Confirm the app's development server is running at development_url.
+2. Show the creator the Sandbox URL immediately.
+3. List existing embedded-browser tabs.
+4. Open the Sandbox URL in a visible browser tab when possible.
+5. Lock the tab before interacting with it.
+6. Take a fresh browser snapshot and start Pi sign-in in the app (button or auto-auth as implemented).
+7. Wait for the Pi QR / approval UI and take a screenshot to confirm it is visible.
+8. Unlock the browser tab.
+9. Stop and ask the developer to scan the QR code with the Pi app (or approve in Pi Browser), then reply when done.
+10. Do not attempt to bypass the approval, enter credentials, script a fake Pi.authenticate result, or repeatedly restart authentication while waiting.
+11. After the developer confirms approval:
+    - Lock the same browser tab again.
+    - Take a fresh snapshot.
+    - Verify the app shows an authenticated session (username or equivalent from the App Studio login exchange).
+    - Confirm a hard refresh still restores the signed-in state when the app is designed to do so.
+12. Use screenshots for visual checks and accessibility snapshots for controls and page state.
+13. After navigation, take a new snapshot before using element references; references from older snapshots may be stale.
+14. Unlock the browser when testing is complete or whenever handing control back to the developer.
+
+Important testing rules:
+- Treat Pi approval, passkeys, CAPTCHA, and phone confirmation as human-only steps.
+- Pause immediately when human action is required and clearly tell the developer what to do.
+- Use short polling or fresh snapshots after approval; do not use blind long waits.
+- Do not repeat a failing browser action without collecting new evidence.
+- Source edits or hot reloads can invalidate development authentication. After editing auth/provider code, perform a fresh, uninterrupted Sandbox sign-in before judging the flow.
+- If Pi temporarily rejects repeated sign-ins, stop and allow a cooldown instead of retrying rapidly.
+- If a live test reveals a bug, explain the evidence, fix it if authorized, run the relevant automated tests, and repeat the Sandbox sign-in.
+- Mocked Pi SDK responses, unit tests, or header-only checks do NOT complete this phase. Do not tell the creator the integration is fully verified until a real Sandbox (or Pi Browser) sign-in succeeded.
+- Sandbox testing validates auth against the development URL. After publish, ecosystem listing still requires a human to open pi_url in Pi Browser and sign in once before verify.
+
+Success report:
+- Sandbox URL used.
+- Development URL used.
+- Account / username observed after sign-in.
+- Whether refresh preserved authentication.
+- Any failures or bugs found.
+- Fixes made.
+- Automated tests and validation run.
+- Any remaining blocker (including if Sandbox could not be opened in the embedded browser).
